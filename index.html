@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -11,18 +10,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'DM Sans',sans-serif;background:#F7F6F2;color:#1C1917}
-.serif{font-family:'Cormorant Garamond',serif}
-.btn{cursor:pointer;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;transition:all .18s}
+body{font-family:"DM Sans",sans-serif;background:#F7F6F2;color:#1C1917}
+.serif{font-family:"Cormorant Garamond",serif}
+.btn{cursor:pointer;border:none;border-radius:8px;font-family:"DM Sans",sans-serif;font-size:13px;font-weight:500;transition:all .18s}
 .btn:hover{filter:brightness(.92)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .card{background:white;border-radius:14px;border:1px solid #E8E5DF}
 .tag{border-radius:20px;font-size:11px;font-weight:500;padding:3px 10px;display:inline-block}
-.tab{padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:all .18s;border:none;background:transparent;font-family:'DM Sans',sans-serif}
+.tab{padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;transition:all .18s;border:none;background:transparent;font-family:"DM Sans",sans-serif;white-space:nowrap}
 .tab.active{background:#1C1917;color:white}
 .tab:not(.active){color:#78716C}
 .tab:not(.active):hover{background:#EFEDE8}
-input,textarea,select{font-family:'DM Sans',sans-serif;font-size:13px;border:1px solid #E8E5DF;border-radius:8px;padding:9px 12px;width:100%;outline:none;background:white;color:#1C1917}
+input,textarea,select{font-family:"DM Sans",sans-serif;font-size:13px;border:1px solid #E8E5DF;border-radius:8px;padding:9px 12px;width:100%;outline:none;background:white;color:#1C1917}
 input:focus,textarea:focus,select:focus{border-color:#92400E}
 .crow{padding:12px 16px;border-radius:10px;cursor:pointer;transition:background .15s;border:1.5px solid transparent}
 .crow:hover{background:#F5F3EE}
@@ -30,10 +29,10 @@ input:focus,textarea:focus,select:focus{border-color:#92400E}
 .scroll{overflow-y:auto}
 .scroll::-webkit-scrollbar{width:4px}
 .scroll::-webkit-scrollbar-thumb{background:#D6D3D1;border-radius:4px}
-.chbtn{padding:7px 12px;border-radius:8px;border:1.5px solid #E8E5DF;cursor:pointer;font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;background:white}
+.chbtn{padding:6px 12px;border-radius:8px;border:1.5px solid #E8E5DF;cursor:pointer;font-size:12px;font-weight:500;font-family:"DM Sans",sans-serif;background:white}
 .chbtn.active{border-color:#92400E;background:#FFF8F0;color:#92400E}
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
-.aibtn{background:linear-gradient(135deg,#7C3AED,#A855F7);color:white;padding:9px 18px;border-radius:9px;border:none;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif}
+.aibtn{background:linear-gradient(135deg,#7C3AED,#A855F7);color:white;padding:9px 18px;border-radius:9px;border:none;font-size:13px;font-weight:500;cursor:pointer;font-family:"DM Sans",sans-serif}
 .aibtn:disabled{opacity:.6;cursor:not-allowed}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:white;border-radius:18px;padding:28px;width:620px;max-width:100%;max-height:92vh;overflow-y:auto}
@@ -45,328 +44,1051 @@ input:focus,textarea:focus,select:focus{border-color:#92400E}
 .field{margin-bottom:12px}
 .field label{display:block;font-size:11px;color:#78716C;margin-bottom:4px;font-weight:500}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.sched{border-radius:12px;padding:12px 14px;margin-bottom:8px;border:1px solid #E8E5DF}
+.sched.overdue{border-color:#FCA5A5;background:#FFF1F2}
+.sched.today{border-color:#FDE68A;background:#FFFBEB}
+.sched.soon{border-color:#BBF7D0;background:#F0FDF4}
+.sched.future{border-color:#E8E5DF;background:#FAFAF7}
 </style>
 </head>
 <body>
 <div id="root"></div>
-<script id="app-script" type="text/babel">
+<script type="text/babel">
 var useState = React.useState;
 var useEffect = React.useEffect;
+
 var STAGES = ["New Inquiry","Awaiting Payment","Payment Received","Care Package Dispatched","Session Confirmed","Active Client","Follow-up"];
-var SC = {"New Inquiry":{bg:"#FFF4E6",accent:"#F97316",dot:"#F97316"},"Awaiting Payment":{bg:"#FFFBEB",accent:"#D97706",dot:"#D97706"},"Payment Received":{bg:"#F0FDF4",accent:"#16A34A",dot:"#16A34A"},"Care Package Dispatched":{bg:"#EFF6FF",accent:"#3B82F6",dot:"#3B82F6"},"Session Confirmed":{bg:"#FAF5FF",accent:"#9333EA",dot:"#9333EA"},"Active Client":{bg:"#ECFDF5",accent:"#059669",dot:"#059669"},"Follow-up":{bg:"#FFF1F2",accent:"#E11D48",dot:"#E11D48"}};
-var CARE_PLANS = ["monthly support plan","half yearly support plan","with care package","30 days","60 days"];
-function hasCare(c){if(!c.plan&&!c.service)return false;if((c.service||"").toLowerCase().includes("homemaker"))return true;var p=(c.plan||"").toLowerCase();for(var i=0;i<CARE_PLANS.length;i++){if(p.includes(CARE_PLANS[i]))return true;}return false;}
-function isOffline(c){return(c.sesMode||"").toLowerCase().includes("person")||(c.sesMode||"").toLowerCase().includes("offline");}
-var PAY_UPI="9681116844@upi";
-var PAY_BANK="Name: Taniya Verma\nBank: State Bank of India\nAccount: 34961318440\nIFSC: SBIN0000180";
-var MAPS_LINK="https://maps.app.goo.gl/nb1Eb1H6sjGASVjr9";
-function payText(c){var t="Payment Details (Full Payment Upfront):\n\nUPI / Google Pay / Paytm: "+PAY_UPI+"\n\nBank Transfer:\n"+PAY_BANK;if(isOffline(c))t+="\n\nCash: Accepted in person. Address: "+MAPS_LINK;return t;}
-function n(c){return c.name?c.name.split(" ")[0]:"there";}
-function slot(c){return c.prefDate||c.prefWE||c.prefWD||"your preferred slot";}
-function buildMsg(c,type,ch,meet){
-  var nm=n(c),sl=slot(c),ml=meet||c.meetLink||"[MEET LINK]";
-  var sessionInfo=isOffline(c)?"Session Mode: In-Person\nLocation: "+MAPS_LINK:"Session Mode: Online (Google Meet)\nMeet Link: "+ml;
-  if(type==="payment"){
-    var careNote=hasCare(c)?"\n\nYour package includes a care package that will be dispatched after payment. Please share your delivery address.":"";
-    if(ch==="wa")return "Hi "+nm+"! Thank you for booking with Body Bio Balance Consultancy.\n\nPlan: "+(c.plan||c.service||"Consultation")+"\nPreferred Slot: "+sl+"\n\n"+payText(c)+careNote+"\n\nOnce payment is confirmed, your appointment details will be sent.\n\nWarm regards,\nTaniya";
-    return "Subject: Booking Confirmation & Payment Details\n\nHi "+nm+",\n\nThank you for booking with us!\n\nPlan: "+(c.plan||c.service||"Consultation")+"\nPreferred Slot: "+sl+"\n\n"+payText(c)+careNote+"\n\nWe look forward to working with you!\n\nWarm regards,\nTaniya Verma\nCertified Diabetes Educator | M.Sc. Applied Nutrition";
+var SC = {
+  "New Inquiry":{bg:"#FFF4E6",accent:"#F97316",dot:"#F97316"},
+  "Awaiting Payment":{bg:"#FFFBEB",accent:"#D97706",dot:"#D97706"},
+  "Payment Received":{bg:"#F0FDF4",accent:"#16A34A",dot:"#16A34A"},
+  "Care Package Dispatched":{bg:"#EFF6FF",accent:"#3B82F6",dot:"#3B82F6"},
+  "Session Confirmed":{bg:"#FAF5FF",accent:"#9333EA",dot:"#9333EA"},
+  "Active Client":{bg:"#ECFDF5",accent:"#059669",dot:"#059669"},
+  "Follow-up":{bg:"#FFF1F2",accent:"#E11D48",dot:"#E11D48"}
+};
+var UPI = "9681116844@upi";
+var BANK_DETAILS = "Name: Taniya Verma\nBank: State Bank of India\nAccount: 34961318440\nIFSC: SBIN0000180";
+var MAPS_LINK = "https://maps.app.goo.gl/nb1Eb1H6sjGASVjr9";
+var CARE_KW = ["monthly support","half yearly","care package","30 days","60 days"];
+
+function hasCare(c) {
+  if (!c) return false;
+  var sess = curSess(c);
+  var s = (sess.service || c.service || "").toLowerCase();
+  var p = (sess.plan || c.plan || "").toLowerCase();
+  if (s.indexOf("homemaker") >= 0) return true;
+  for (var i = 0; i < CARE_KW.length; i++) { if (p.indexOf(CARE_KW[i]) >= 0) return true; }
+  return false;
+}
+function isOffline(c) {
+  var sess = curSess(c);
+  var m = (sess.sesMode || c.sesMode || "").toLowerCase();
+  return m.indexOf("person") >= 0 || m.indexOf("offline") >= 0;
+}
+function curSess(c) {
+  if (!c || !c.sessions || !c.sessions.length) return c || {};
+  return c.sessions[c.currentSession || 0] || c.sessions[0];
+}
+function cStage(c) { return (curSess(c).stage) || "New Inquiry"; }
+
+function payText(c) {
+  var t = "Full Payment Upfront:\n\nUPI/Google Pay/Paytm: " + UPI + "\n\nBank Transfer:\n" + BANK_DETAILS;
+  if (isOffline(c)) t += "\n\nCash accepted in person.\nAddress: " + MAPS_LINK;
+  return t;
+}
+
+function buildMsg(c, type, ch) {
+  var nm = c.name ? c.name.split(" ")[0] : "there";
+  var sess = curSess(c);
+  var plan = sess.plan || sess.service || "your selected plan";
+  var sl = sess.prefDate || sess.prefWE || sess.prefWD || "your preferred slot";
+  var ml = sess.meetLink || "[MEET LINK]";
+  var si = isOffline(c) ? "Mode: In-Person\nAddress: " + MAPS_LINK : "Mode: Online (Google Meet)\nMeet Link: " + ml;
+  var da = "";
+  if (sess.deliveryLine1) {
+    da = "\n\nDelivery Address:\n" + sess.deliveryLine1;
+    if (sess.deliveryLine2) da += "\n" + sess.deliveryLine2;
+    if (sess.deliveryCity) da += "\n" + sess.deliveryCity;
+    if (sess.deliveryPin) da += " - " + sess.deliveryPin;
+    if (sess.deliveryLandmark) da += "\nLandmark: " + sess.deliveryLandmark;
+    if (sess.deliveryTime) da += "\nPreferred Delivery Time: " + sess.deliveryTime;
   }
-  if(type==="care_dispatch"){
-    var delAddr="";
-    if(c.deliveryLine1){
-      delAddr="\n\nDelivery Address:\n"+c.deliveryLine1;
-      if(c.deliveryLine2)delAddr+="\n"+c.deliveryLine2;
-      if(c.deliveryCity)delAddr+="\n"+c.deliveryCity;
-      if(c.deliveryPin)delAddr+=" - "+c.deliveryPin;
-      if(c.deliveryLandmark)delAddr+="\nLandmark: "+c.deliveryLandmark;
-      if(c.deliveryTime)delAddr+="\nPreferred Delivery Time: "+c.deliveryTime;
+  var msgs = {
+    payment:{
+      wa:"Hi " + nm + "! Thank you for booking with Body Bio Balance Consultancy.\n\nPlan: " + plan + "\nPreferred Slot: " + sl + "\n\n" + payText(c) + (hasCare(c) ? "\n\nYour package includes a care package dispatched after payment." : "") + "\n\nWarm regards,\nTaniya",
+      em:"Subject: Booking Confirmation & Payment Details\n\nHi " + nm + ",\n\nThank you for booking!\n\nPlan: " + plan + "\nSlot: " + sl + "\n\n" + payText(c) + "\n\nWarm regards,\nTaniya Verma\nCertified Diabetes Educator"
+    },
+    payment_reminder:{
+      wa:"Hi " + nm + "! Gentle reminder - your payment for " + plan + " is pending. Please complete payment to confirm your appointment.\n\n" + payText(c) + "\n\nTaniya",
+      em:"Subject: Payment Reminder\n\nHi " + nm + ",\n\nFriendly reminder that payment is pending.\n\n" + payText(c) + "\n\nWarm regards,\nTaniya"
+    },
+    care_dispatch:{
+      wa:"Hi " + nm + "! Payment received - thank you! Your care package is being packed and will be dispatched soon." + da + "\n\nPlease let me know once you receive it!\n\nWarm regards,\nTaniya",
+      em:"Subject: Payment Received - Care Package Dispatched\n\nHi " + nm + ",\n\nPayment confirmed! Your care package is being prepared." + da + "\n\nWarm regards,\nTaniya"
+    },
+    care_followup:{
+      wa:"Hi " + nm + "! Just checking - has your care package arrived yet? Looking forward to confirming your appointment!\n\nWarm regards,\nTaniya",
+      em:"Subject: Care Package Delivery Check\n\nHi " + nm + ",\n\nJust checking on your care package delivery. Please let us know once it arrives!\n\nWarm regards,\nTaniya"
+    },
+    session_confirm:{
+      wa:"Hi " + nm + "! Payment confirmed - your appointment is booked!\n\n" + si + "\nDate/Time: " + sl + "\n\nPlease be ready 5 minutes early. See you soon!\nTaniya",
+      em:"Subject: Appointment Confirmed!\n\nHi " + nm + ",\n\nYour appointment is confirmed!\n\n" + si + "\nDate/Time: " + sl + "\n\nWarm regards,\nTaniya"
+    },
+    session_reminder:{
+      wa:"Good morning " + nm + "! Your session with Taniya is TODAY.\n\n" + si + "\n\nPlease be ready 5 minutes early. See you soon!\nTaniya",
+      em:"Subject: Session Reminder - Today!\n\nHi " + nm + ",\n\nReminder - your session is today!\n\n" + si + "\n\nSee you soon!\nTaniya"
+    },
+    weekly_followup:{
+      wa:"Hi " + nm + "! Hope your first week on the plan is going well. Any wins or challenges to share? I am here to support you!\n\nWarm regards,\nTaniya",
+      em:"Subject: Weekly Check-in\n\nHi " + nm + ",\n\nHope this week has been great! How is the plan going?\n\nWarm regards,\nTaniya"
+    },
+    reengagement:{
+      wa:"Hi " + nm + "! It has been a while. How are you doing with your health goals? I would love to reconnect - I have a few slots this month.\n\nWarm regards,\nTaniya",
+      em:"Subject: Checking In On Your Wellness Journey\n\nHi " + nm + ",\n\nHope you are doing wonderfully! I have slots open if you would like to reconnect.\n\nWarm regards,\nTaniya"
+    },
+    followup:{
+      wa:"Hi " + nm + "! Just checking in on how your program is going. Any questions or support needed?\n\nWarm regards,\nTaniya",
+      em:"Subject: Following Up\n\nHi " + nm + ",\n\nJust checking in! How is everything going with your program?\n\nWarm regards,\nTaniya"
     }
-    if(ch==="wa")return "Hi "+nm+"! Your payment has been received - thank you! Your care package is being packed and will be dispatched to you very soon."+delAddr+"\n\nPlease let me know once you receive it so we can confirm your appointment slot!\n\nWarm regards,\nTaniya";
-    return "Subject: Payment Received - Care Package Being Dispatched\n\nHi "+nm+",\n\nThank you for your payment! Your care package is being carefully prepared and will be dispatched soon."+delAddr+"\n\nPlease reply once you receive it so we can confirm your appointment.\n\nWarm regards,\nTaniya Verma\nBody Bio Balance Consultancy";
-  }
-  if(type==="session"){
-    if(ch==="wa")return "Hi "+nm+"! Your payment has been received - your appointment is confirmed!\n\n"+sessionInfo+"\nDate/Time: "+sl+"\n\nPlease be ready 5 minutes early. See you soon!\nTaniya";
-    return "Subject: Appointment Confirmed!\n\nHi "+nm+",\n\nYour payment is received and your appointment is confirmed!\n\n"+sessionInfo+"\nDate/Time: "+sl+"\n\nSee you soon!\n\nWarm regards,\nTaniya Verma";
-  }
-  if(type==="reminder"){
-    if(ch==="wa")return "Good morning "+nm+"! Reminder - your session with Taniya is TODAY.\n\n"+sessionInfo+"\n\nPlease be ready 5 minutes early. Looking forward to it!\nTaniya";
-    return "Subject: Session Reminder - Today!\n\nHi "+nm+",\n\nReminder that your session with Taniya is today.\n\n"+sessionInfo+"\n\nSee you soon!\n\nWarm regards,\nTaniya";
-  }
-  if(type==="followup"){
-    if(ch==="wa")return "Hi "+nm+"! It has been a while. How are you doing with your health goals? I would love to reconnect. Would you be open to a check-in call? I have a few spots available this month.\n\nWarm regards,\nTaniya";
-    return "Subject: Checking In On Your Wellness Journey\n\nHi "+nm+",\n\nI hope you are doing wonderfully! It has been some time since we last connected.\n\nI have a few spots open this month if you would like to reconnect.\n\nEither way, I am rooting for you!\n\nWarm regards,\nTaniya Verma\nBody Bio Balance Consultancy";
-  }
-  return "";
+  };
+  var m = msgs[type];
+  if (!m) return "";
+  return ch === "em" ? m.em : m.wa;
 }
-var CHECKLIST={"New Inquiry":["Review client form","Check preferred slot availability","Verify package selection","Prepare payment message"],"Awaiting Payment":["Payment message sent on WhatsApp","Payment message sent on Email","Follow up if no payment after 24hrs","Mark payment once received"],"Payment Received":["Calendar event created","Meet link sent (if online)","Care package dispatched (if applicable)","Client notified of confirmation"],"Care Package Dispatched":["Package packed and dispatched","Note dispatch date","Follow up if not received in 3 days","Wait for client confirmation"],"Session Confirmed":["Session reminder sent on session day","Notes prepared","Intake form reviewed","Health details checked"],"Active Client":["Weekly check-in sent","Meal plan reviewed","Session notes updated","Next appointment booked"],"Follow-up":["Re-engagement message sent","Last interaction noted","Offer returning client pricing","Update stage"]};
-var COL={name:"Name",email:"Email Address",phone:"Phone Number (preferably WhatsApp)",dob:"Date of Birth",gender:"Gender",city:"City /Location",workedBefore:"Have you worked with me before?",lastProgram:"RET_Which program did we last work on together?",progress:"RET_How has your progress been since we last worked together? ",refCode:"RET_Please enter your referral/ client code",serviceRet:"RET_Which service would you like to book?",prevNutri:"NEW_Have you worked with a nutritionist or dietitian before? ",source:"NEW_How did you hear about me?",serviceNew:"NEW_Which service would you like to book?",planCN:"NEW_Choose your 1:1 Nutrition Consultation plan",planHN:"NEW_Choose your Habit Building Program plan",planFN:"NEW_Choose your Metabolic Reset plan",planMN:"NEW_Choose your Homemaker's Family plan",planCR:"RET_Choose your 1:1 Nutrition Consultation plan",planHR:"RET_Choose your Habit Building plan",planFR:"RET_Choose your Metabolic Reset plan",planMR:"RET_Choose your Homemaker's Family plan",goal:"What are your primary health goals or concerns?",conditions:"Do you have any existing health conditions? (Select all that apply)",onMed:"Are you currently on any medication?",meds:"Name of Medicines taken and its doses.",sesMode:"How would you like to attend your session?",prefWE:"Preferred Slot [Weekend]",prefWD:"Preferred Slot [Weekdays]",prefDate:"Preferred Date",extraNotes:"Anything else you'd like me to know before your session? ",labs:"Please upload your latest blood reports or doctor's prescription for reference.",callingPhone:"Calling Phone Number",deliveryLine1:"Delivery Address Line 1 (House number / Apartment / Building name)",deliveryLine2:"Delivery Address Line 2 (Street / Area / Locality)",deliveryCity:"City, State",deliveryPin:"PIN Code",deliveryLandmark:"Landmark (Optional) Example: Near ABC School / Opposite XYZ Mall",deliveryTime:"Preferred Delivery Time",isPreferredAddress:"Is this your preferred delivery address?",finalConfirmation:"FINAL CONFIRMAION"};
-function getPlan(row){var ps=[{s:"1:1 Nutrition Consultation",t:"New Client",k:COL.planCN},{s:"1:1 Nutrition Consultation",t:"Returning",k:COL.planCR},{s:"Habit Building",t:"New Client",k:COL.planHN},{s:"Habit Building",t:"Returning",k:COL.planHR},{s:"Metabolic Reset",t:"New Client",k:COL.planFN},{s:"Metabolic Reset",t:"Returning",k:COL.planFR},{s:"Homemaker Family",t:"New Client",k:COL.planMN},{s:"Homemaker Family",t:"Returning",k:COL.planMR}];for(var i=0;i<ps.length;i++){if(row[ps[i].k])return{plan:row[ps[i].k],service:ps[i].s,ct:ps[i].t};}return{plan:"",service:row[COL.serviceNew]||row[COL.serviceRet]||"",ct:row[COL.serviceRet]?"Returning":"New Client"};}
-function parseDate(ts){if(!ts)return"";try{var d=typeof ts==="number"?new Date((ts-25569)*86400*1000):new Date(ts);if(isNaN(d.getTime()))return"";return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"2-digit"});}catch(e){return"";}}
-function genCode(clients,date){var d;try{d=date?new Date(date):new Date();if(isNaN(d.getTime()))d=new Date();}catch(e){d=new Date();}var yy=String(d.getFullYear()).slice(-2);var mm=String(d.getMonth()+1).padStart(2,"0");var ex=clients.filter(function(c){return c.cc&&c.cc.startsWith(yy)&&c.cc.slice(3,5)===mm;});var s=ex.length+1;var b=Math.floor((s-1)/100);var r=b===0?s:(s-1)%100;return yy+b+mm+String(r).padStart(2,"0");}
-function parseRow(row){var p=getPlan(row);var ds=parseDate(row.Timestamp||row[COL.timestamp]);if(!ds)ds=new Date().toLocaleDateString("en-US",{month:"short",day:"numeric"});return{id:Date.now()+Math.random(),name:row[COL.name]||row.Name||"Unknown",email:row[COL.email]||row["Email Address"]||"",phone:String(row[COL.phone]||row["Phone Number (preferably WhatsApp)"]||""),dob:row[COL.dob]||"",gender:row[COL.gender]||"",city:row[COL.city]||"",workedBefore:row[COL.workedBefore]||"",lastProgram:row[COL.lastProgram]||"",progress:row[COL.progress]||"",prevNutri:row[COL.prevNutri]||"",source:row[COL.source]||"Form",refCode:row[COL.refCode]||"",service:p.service,plan:p.plan,ct:p.ct,goal:row[COL.goal]||"",conditions:row[COL.conditions]||"",onMed:row[COL.onMed]||"",meds:row[COL.meds]||"",sesMode:row[COL.sesMode]||"",prefWE:row[COL.prefWE]||"",prefWD:row[COL.prefWD]||"",prefDate:row[COL.prefDate]||"",extraNotes:row[COL.extraNotes]||"",labs:row[COL.labs]||"",stage:"New Inquiry",cc:"",date:ds,meetLink:"",
-    callingPhone:String(row[COL.callingPhone]||""),
-    deliveryLine1:row[COL.deliveryLine1]||"",
-    deliveryLine2:row[COL.deliveryLine2]||"",
-    deliveryCity:row[COL.deliveryCity]||"",
-    deliveryPin:String(row[COL.deliveryPin]||""),
-    deliveryLandmark:row[COL.deliveryLandmark]||"",
-    deliveryTime:row[COL.deliveryTime]||"",
-    isPreferredAddress:row[COL.isPreferredAddress]||"",
-    finalConfirmation:row[COL.finalConfirmation]||""
-  };}
-function assignCodes(clients){var sorted=clients.slice().sort(function(a,b){return new Date(a.date)-new Date(b.date);});var used={};return sorted.map(function(c){if(c.cc){used[c.cc]=1;return c;}var code=genCode(Object.keys(used).map(function(k){return{cc:k};}),c.date);used[code]=1;return Object.assign({},c,{cc:code});});}
-async function createCalEvent(c){try{var token=localStorage.getItem("gapi_token");if(!token)return null;var sl2=c.prefDate||c.prefWE||c.prefWD||"";var start=sl2?new Date(sl2):new Date();if(isNaN(start.getTime()))start=new Date();var end=new Date(start.getTime()+3600000);var ev={summary:"Session: "+c.name+" - "+(c.service||c.plan||"Consultation"),description:"Client: "+c.name+"\nPhone: "+c.phone+"\nEmail: "+c.email+"\nPlan: "+c.plan+"\nGoals: "+c.goal,start:{dateTime:start.toISOString(),timeZone:"Asia/Kolkata"},end:{dateTime:end.toISOString(),timeZone:"Asia/Kolkata"},attendees:c.email?[{email:c.email}]:[]};if(!isOffline(c))ev.conferenceData={createRequest:{requestId:"bbb-"+c.id,conferenceSolutionKey:{type:"hangoutsMeet"}}};var url="https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all";var res=await fetch(url,{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(ev)});var data=await res.json();if(data.error)return null;var ep=data.conferenceData&&data.conferenceData.entryPoints&&data.conferenceData.entryPoints.find(function(e){return e.entryPointType==="video";});return ep?ep.uri:null;}catch(e){return null;}}
-function App(){
-var r1=useState([]);var clients=r1[0];var setClients=r1[1];
-var r2=useState(null);var sel=r2[0];var setSel=r2[1];
-var r3=useState("pipeline");var tab=r3[0];var setTab=r3[1];
-var r4=useState("wa");var ch=r4[0];var setCh=r4[1];
-var r5=useState("");var copied=r5[0];var setCopied=r5[1];
-var r6=useState({});var checked=r6[0];var setChecked=r6[1];
-var r7=useState(false);var showAdd=r7[0];var setShowAdd=r7[1];
-var r8=useState(false);var showImport=r8[0];var setShowImport=r8[1];
-var r9=useState(false);var aiLoad=r9[0];var setAiLoad=r9[1];
-var r10=useState("");var aiMsg=r10[0];var setAiMsg=r10[1];
-var r11=useState("");var aiP=r11[0];var setAiP=r11[1];
-var r12=useState("");var search=r12[0];var setSearch=r12[1];
-var r13=useState("All");var fStage=r13[0];var setFStage=r13[1];
-var r14=useState("");var toast=r14[0];var setToast=r14[1];
-var r15=useState("");var importJson=r15[0];var setImportJson=r15[1];
-var r16=useState("");var importErr=r16[0];var setImportErr=r16[1];
-var r17=useState({name:"",stage:"New Inquiry",source:"Instagram",goal:"",phone:"",email:"",conditions:"",meds:"",sesMode:"Online",plan:"",prefDate:""});var newC=r17[0];var setNewC=r17[1];
-var r18=useState(false);var showEdit=r18[0];var setShowEdit=r18[1];
-var r19=useState(null);var editData=r19[0];var setEditData=r19[1];
-var r20=useState(false);var showSend=r20[0];var setShowSend=r20[1];
-var r21=useState(null);var sendCtx=r21[0];var setSendCtx=r21[1];
-var r22=useState("");var sendWa=r22[0];var setSendWa=r22[1];
-var r23=useState("");var sendEmail=r23[0];var setSendEmail=r23[1];
-var r24=useState(false);var calLoad=r24[0];var setCalLoad=r24[1];
-useEffect(function(){try{var d=localStorage.getItem("bbb_c");if(d)setClients(JSON.parse(d));}catch(e){}try{var d2=localStorage.getItem("bbb_ch");if(d2)setChecked(JSON.parse(d2));}catch(e){};},[]);
-useEffect(function(){try{localStorage.setItem("bbb_c",JSON.stringify(clients));}catch(e){};},[clients]);
-useEffect(function(){try{localStorage.setItem("bbb_ch",JSON.stringify(checked));}catch(e){};},[checked]);
-useEffect(function(){window.__receiveSheetData=function(rows){var inc=rows.map(parseRow);setClients(function(prev){var em=new Set(prev.map(function(c){return(c.email||"").toLowerCase();}));var fresh=inc.filter(function(c){return!em.has((c.email||"").toLowerCase());});if(!fresh.length){showToast("No new clients found");return prev;}showToast(fresh.length+" client(s) imported!");return assignCodes(prev.concat(fresh));});};return function(){delete window.__receiveSheetData;};},[]);
-function showToast(msg){setToast(msg);setTimeout(function(){setToast("");},4000);}
-function upd(id,u){setClients(function(p){return p.map(function(c){return c.id===id?Object.assign({},c,u):c;});});setSel(function(p){return p&&p.id===id?Object.assign({},p,u):p;});}
-function cp(text,lbl){navigator.clipboard.writeText(text);setCopied(lbl);setTimeout(function(){setCopied("");},2000);}
-var filtered=clients.filter(function(c){return(fStage==="All"||c.stage===fStage)&&(c.name.toLowerCase().includes(search.toLowerCase())||(c.goal||"").toLowerCase().includes(search.toLowerCase()));});
-function cnt(st){return clients.filter(function(c){return c.stage===st;}).length;}
-function openSend(c,nextStage,type,isReminder){
-  var wa="",em="";
-  if(type==="payment"){wa=buildMsg(c,"payment","wa");em=buildMsg(c,"payment","em");}
-  else if(type==="care_dispatch"){wa=buildMsg(c,"care_dispatch","wa");em=buildMsg(c,"care_dispatch","em");}
-  else if(type==="session"){wa=buildMsg(c,"session","wa",c.meetLink||"");em=buildMsg(c,"session","em",c.meetLink||"");}
-  else if(type==="reminder"){wa=buildMsg(c,"reminder","wa",c.meetLink||"");em=buildMsg(c,"reminder","em",c.meetLink||"");}
-  else if(type==="followup"){wa=buildMsg(c,"followup","wa");em=buildMsg(c,"followup","em");}
-  setSendCtx({c:c,next:nextStage,isReminder:!!isReminder});
-  setSendWa(wa);setSendEmail(em);setShowSend(true);
+
+var CL = {
+  "New Inquiry":["Review client form","Check preferred slot","Verify package","Prepare payment message"],
+  "Awaiting Payment":["Payment message sent on WhatsApp","Payment message sent on Email","Follow up if no payment after 24hrs","Mark payment once received"],
+  "Payment Received":["Calendar event created","Meet link or address sent","Care package dispatched if applicable","Client notified"],
+  "Care Package Dispatched":["Package packed and dispatched","Note dispatch date","Follow up in 3 days","Wait for client confirmation"],
+  "Session Confirmed":["Session reminder sent on session day","Notes prepared","Intake form reviewed","Health details checked"],
+  "Active Client":["Weekly check-in sent","Meal plan reviewed","Session notes updated","Next appointment booked"],
+  "Follow-up":["Re-engagement message sent","Last interaction noted","Offer returning client pricing","Update stage"]
+};
+
+var COL = {
+  name:"Name", email:"Email Address", phone:"Phone Number (preferably WhatsApp)",
+  dob:"Date of Birth", gender:"Gender", city:"City /Location",
+  workedBefore:"Have you worked with me before?",
+  lastProgram:"RET_Which program did we last work on together?",
+  progress:"RET_How has your progress been since we last worked together? ",
+  refCode:"RET_Please enter your referral/ client code",
+  serviceRet:"RET_Which service would you like to book?",
+  prevNutri:"NEW_Have you worked with a nutritionist or dietitian before? ",
+  source:"NEW_How did you hear about me?",
+  serviceNew:"NEW_Which service would you like to book?",
+  planCN:"NEW_Choose your 1:1 Nutrition Consultation plan",
+  planHN:"NEW_Choose your Habit Building Program plan",
+  planFN:"NEW_Choose your Metabolic Reset plan",
+  planMN:"NEW_Choose your Homemaker s Family plan",
+  planCR:"RET_Choose your 1:1 Nutrition Consultation plan",
+  planHR:"RET_Choose your Habit Building plan",
+  planFR:"RET_Choose your Metabolic Reset plan",
+  planMR:"RET_Choose your Homemaker s Family plan",
+  goal:"What are your primary health goals or concerns?",
+  conditions:"Do you have any existing health conditions? (Select all that apply)",
+  onMed:"Are you currently on any medication?",
+  meds:"Name of Medicines taken and its doses.",
+  sesMode:"How would you like to attend your session?",
+  prefWE:"Preferred Slot [Weekend]",
+  prefWD:"Preferred Slot [Weekdays]",
+  prefDate:"Preferred Date",
+  extraNotes:"Anything else you d like me to know before your session? ",
+  labs:"Please upload your latest blood reports or doctor s prescription for reference.",
+  callingPhone:"Calling Phone Number",
+  deliveryLine1:"Delivery Address Line 1 (House number / Apartment / Building name)",
+  deliveryLine2:"Delivery Address Line 2 (Street / Area / Locality)",
+  deliveryCity:"City, State",
+  deliveryPin:"PIN Code",
+  deliveryLandmark:"Landmark (Optional) Example: Near ABC School / Opposite XYZ Mall",
+  deliveryTime:"Preferred Delivery Time",
+  isPreferredAddress:"Is this your preferred delivery address?",
+  finalConfirmation:"FINAL CONFIRMAION"
+};
+
+function getPlan(row) {
+  var ps = [
+    {s:"1:1 Nutrition",t:"New Client",k:COL.planCN},
+    {s:"1:1 Nutrition",t:"Returning",k:COL.planCR},
+    {s:"Habit Building",t:"New Client",k:COL.planHN},
+    {s:"Habit Building",t:"Returning",k:COL.planHR},
+    {s:"Metabolic Reset",t:"New Client",k:COL.planFN},
+    {s:"Metabolic Reset",t:"Returning",k:COL.planFR},
+    {s:"Homemaker Family",t:"New Client",k:COL.planMN},
+    {s:"Homemaker Family",t:"Returning",k:COL.planMR}
+  ];
+  for (var i = 0; i < ps.length; i++) { if (row[ps[i].k]) return {plan:row[ps[i].k],service:ps[i].s,ct:ps[i].t}; }
+  var hasRet = !!row[COL.serviceRet];
+  return {plan:"",service:row[COL.serviceNew]||row[COL.serviceRet]||"",ct:hasRet?"Returning":"New Client"};
 }
-function initiateMove(c,dir){
-  var idx=STAGES.indexOf(c.stage);var next=STAGES[idx+dir];if(!next)return;
-  if(dir===-1){upd(c.id,{stage:next});return;}
-  if(next==="Awaiting Payment")openSend(c,next,"payment");
-  else if(next==="Payment Received"){if(hasCare(c))openSend(c,next,"care_dispatch");else openSend(c,next,"session");}
-  else if(next==="Care Package Dispatched")openSend(c,next,"care_dispatch");
-  else if(next==="Session Confirmed")openSend(c,next,"session");
-  else if(next==="Follow-up")openSend(c,next,"followup");
-  else upd(c.id,{stage:next});
+
+function parseDate(ts) {
+  if (!ts) return "";
+  try {
+    var d = typeof ts === "number" ? new Date((ts - 25569) * 86400 * 1000) : new Date(ts);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"2-digit"});
+  } catch(e) { return ""; }
 }
-async function confirmMove(){
-  if(!sendCtx)return;
-  var c=sendCtx.c,next=sendCtx.next;
-  if(!sendCtx.isReminder&&(next==="Payment Received"||next==="Session Confirmed")&&!isOffline(c)){
-    setCalLoad(true);
-    var ml=await createCalEvent(c);
-    setCalLoad(false);
-    if(ml){upd(c.id,{meetLink:ml});setSendWa(function(p){return p.replace("[MEET LINK]",ml);});setSendEmail(function(p){return p.replace("[MEET LINK]",ml);});}
+
+function genCode(clients, date) {
+  var d; try { d = date ? new Date(date) : new Date(); if (isNaN(d.getTime())) d = new Date(); } catch(e) { d = new Date(); }
+  var yy = String(d.getFullYear()).slice(-2);
+  var mm = String(d.getMonth()+1).padStart(2,"0");
+  var ex = clients.filter(function(c){ return c.cc && c.cc.startsWith(yy) && c.cc.slice(3,5)===mm; });
+  var serial = ex.length+1;
+  var batch = Math.floor((serial-1)/100);
+  var rem = batch===0 ? serial : (serial-1)%100;
+  return yy+batch+mm+String(rem).padStart(2,"0");
+}
+
+function makeSession(row, num) {
+  var p = getPlan(row);
+  var ds = parseDate(row["Timestamp"] || row.Timestamp);
+  if (!ds) ds = new Date().toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  return {
+    sessionNum:num||1, date:ds, plan:p.plan, service:p.service, ct:p.ct,
+    stage:"New Inquiry", sesMode:row[COL.sesMode]||"",
+    prefWE:row[COL.prefWE]||"", prefWD:row[COL.prefWD]||"", prefDate:row[COL.prefDate]||"",
+    prefSlot:row[COL.prefDate]||row[COL.prefWE]||row[COL.prefWD]||"",
+    extraNotes:row[COL.extraNotes]||"", labs:row[COL.labs]||"", meetLink:"",
+    refCode:row[COL.refCode]||"", sessionNotes:"",
+    deliveryLine1:row[COL.deliveryLine1]||"", deliveryLine2:row[COL.deliveryLine2]||"",
+    deliveryCity:row[COL.deliveryCity]||"", deliveryPin:String(row[COL.deliveryPin]||""),
+    deliveryLandmark:row[COL.deliveryLandmark]||"", deliveryTime:row[COL.deliveryTime]||"",
+    isPreferredAddress:row[COL.isPreferredAddress]||"", finalConfirmation:row[COL.finalConfirmation]||"",
+    callingPhone:String(row[COL.callingPhone]||"")
+  };
+}
+
+function parseRow(row) {
+  var ds = parseDate(row["Timestamp"] || row.Timestamp);
+  if (!ds) ds = new Date().toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  var session = makeSession(row, 1);
+  return {
+    id:Date.now()+Math.random(),
+    name:row[COL.name]||row["Name"]||"Unknown",
+    email:row[COL.email]||row["Email Address"]||"",
+    phone:String(row[COL.phone]||row["Phone Number (preferably WhatsApp)"]||""),
+    dob:row[COL.dob]||"", gender:row[COL.gender]||"", city:row[COL.city]||"",
+    workedBefore:row[COL.workedBefore]||"", lastProgram:row[COL.lastProgram]||"",
+    progress:row[COL.progress]||"", prevNutri:row[COL.prevNutri]||"",
+    source:row[COL.source]||"Form", goal:row[COL.goal]||"",
+    conditions:row[COL.conditions]||"", onMed:row[COL.onMed]||"", meds:row[COL.meds]||"",
+    cc:"", date:ds, referredBy:"", referredByName:"", referralCount:0,
+    sessions:[session], currentSession:0, scheduledMessages:[]
+  };
+}
+
+function assignCodes(clients) {
+  var sorted = clients.slice().sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+  var used = {};
+  return sorted.map(function(c){
+    if (c.cc){used[c.cc]=1;return c;}
+    var code = genCode(Object.keys(used).map(function(k){return{cc:k};}),c.date);
+    used[code]=1;
+    return Object.assign({},c,{cc:code});
+  });
+}
+
+function detectAndMerge(incoming, existing) {
+  var updatedExisting = existing.slice();
+  var toAdd = [];
+  incoming.forEach(function(newC) {
+    var refCode = (newC.sessions[0] && newC.sessions[0].refCode) || "";
+    if (refCode) {
+      var referrer = existing.find(function(c){ return c.cc === refCode; });
+      if (referrer) {
+        var nameMatch = referrer.name.toLowerCase().trim() === newC.name.toLowerCase().trim();
+        var emailMatch = referrer.email.toLowerCase().trim() === newC.email.toLowerCase().trim();
+        if (nameMatch || emailMatch) {
+          // RETURNING - add session to existing
+          newC.sessions[0].sessionNum = (referrer.sessions ? referrer.sessions.length : 0) + 1;
+          updatedExisting = updatedExisting.map(function(c){
+            if (c.id !== referrer.id) return c;
+            var sessions = (c.sessions||[]).concat(newC.sessions);
+            return Object.assign({},c,{sessions:sessions,currentSession:sessions.length-1});
+          });
+          return;
+        } else {
+          // REFERRAL - new person, mark referrer
+          newC.referredBy = refCode;
+          newC.referredByName = referrer.name;
+          updatedExisting = updatedExisting.map(function(c){
+            if (c.id !== referrer.id) return c;
+            return Object.assign({},c,{referralCount:(c.referralCount||0)+1});
+          });
+        }
+      }
+    }
+    // Check email duplicate
+    var existing_email = existing.find(function(c){ return c.email && c.email.toLowerCase() === (newC.email||"").toLowerCase(); });
+    if (!existing_email) toAdd.push(newC);
+  });
+  return assignCodes(updatedExisting.concat(toAdd));
+}
+
+// SCHEDULING
+function scheduleMessages(client, newStage) {
+  var now = new Date();
+  var rules = {
+    "Awaiting Payment":[{type:"payment_reminder",label:"Payment Reminder",days:1}],
+    "Care Package Dispatched":[{type:"care_followup",label:"Care Package Follow-up",days:3}],
+    "Session Confirmed":[{type:"session_reminder",label:"Session Reminder",days:0,morning:true}],
+    "Active Client":[{type:"weekly_followup",label:"Weekly Check-in",days:7}],
+    "Follow-up":[{type:"reengagement",label:"Re-engagement",days:30}]
+  };
+  var r = rules[newStage];
+  if (!r) return client.scheduledMessages || [];
+  var existing = (client.scheduledMessages || []).filter(function(m){ return !m.sent; });
+  r.forEach(function(rule) {
+    var sendAt = new Date(now);
+    if (rule.morning) {
+      sendAt.setHours(8,0,0,0);
+      if (sendAt <= now) sendAt.setDate(sendAt.getDate()+1);
+    } else {
+      sendAt.setDate(sendAt.getDate() + rule.days);
+      sendAt.setHours(8,0,0,0);
+    }
+    existing.push({
+      id: Date.now()+Math.random(),
+      type: rule.type,
+      label: rule.label,
+      clientId: client.id,
+      clientName: client.name,
+      scheduledFor: sendAt.toISOString(),
+      sent: false,
+      waMsg: buildMsg(client, rule.type, "wa"),
+      emMsg: buildMsg(client, rule.type, "em"),
+      phone: client.phone,
+      email: client.email
+    });
+  });
+  return existing;
+}
+
+function getAllScheduled(clients) {
+  var all = [];
+  clients.forEach(function(c){
+    (c.scheduledMessages||[]).forEach(function(m){
+      if (!m.sent) all.push(Object.assign({},m,{clientName:c.name,phone:c.phone,email:c.email}));
+    });
+  });
+  return all.sort(function(a,b){return new Date(a.scheduledFor)-new Date(b.scheduledFor);});
+}
+
+function getSchedStatus(scheduledFor) {
+  var now = new Date();
+  var then = new Date(scheduledFor);
+  var diff = then - now;
+  if (diff < 0) return "overdue";
+  if (diff < 86400000) return "today";
+  if (diff < 86400000*3) return "soon";
+  return "future";
+}
+
+function formatSchedTime(scheduledFor) {
+  var d = new Date(scheduledFor);
+  var now = new Date();
+  var diff = d - now;
+  if (diff < 0) {
+    var ago = Math.abs(diff);
+    if (ago < 3600000) return Math.floor(ago/60000) + " mins overdue";
+    if (ago < 86400000) return Math.floor(ago/3600000) + " hrs overdue";
+    return Math.floor(ago/86400000) + " days overdue";
   }
-  if(!sendCtx.isReminder)upd(c.id,{stage:next});
-  setShowSend(false);
-  showToast(sendCtx.isReminder?"Reminder ready!":"Moved to "+next+"!");
+  if (diff < 86400000) return "Today at " + d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+  if (diff < 86400000*2) return "Tomorrow at " + d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+  return d.toLocaleDateString("en-US",{month:"short",day:"numeric"}) + " at " + d.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
 }
-function doImport(){setImportErr("");if(!importJson.trim()){setImportErr("Paste your JSON first.");return;}try{var rows=JSON.parse(importJson.trim());if(!Array.isArray(rows)){setImportErr("Must be a JSON array.");return;}setClients(function(prev){var em=new Set(prev.map(function(c){return(c.email||"").toLowerCase();}));var fresh=rows.map(parseRow).filter(function(c){return!em.has((c.email||"").toLowerCase());});if(!fresh.length){showToast("No new clients");setShowImport(false);return prev;}showToast(fresh.length+" imported!");setShowImport(false);setImportJson("");return assignCodes(prev.concat(fresh));});}catch(e){setImportErr("Parse error: "+e.message);}}
-function addCli(){if(!newC.name)return;var ds=new Date().toLocaleDateString("en-US",{month:"short",day:"numeric"});setClients(function(prev){var code=genCode(prev,new Date());return prev.concat([Object.assign({},newC,{id:Date.now(),date:ds,cc:code,ct:newC.source==="Referral"?"Returning":"New Client",meetLink:""})]);});setShowAdd(false);setNewC({name:"",stage:"New Inquiry",source:"Instagram",goal:"",phone:"",email:"",conditions:"",meds:"",sesMode:"Online",plan:"",prefDate:""});}
-async function genAi(){if(!sel||!aiP.trim())return;setAiLoad(true);setAiMsg("");try{var res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:"You are Taniya, a Certified Diabetes Educator and Nutritionist. Write warm, professional, empathetic client messages. Sign off as Taniya.",messages:[{role:"user",content:"Client: "+sel.name+". Stage: "+sel.stage+". Goal: "+sel.goal+". Conditions: "+sel.conditions+". Plan: "+sel.plan+". Channel: "+(ch==="wa"?"WhatsApp":"Email")+". Task: "+aiP}]})});var data=await res.json();var t=data.content&&data.content.find(function(b){return b.type==="text";});setAiMsg(t?t.text:"Could not generate.");}catch(e){setAiMsg("Error. Try again.");}setAiLoad(false);}
-return (
-<div style={{fontFamily:"'DM Sans',sans-serif",background:"#F7F6F2",minHeight:"100vh"}}>
-<div style={{background:"#1C1917",color:"white",padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
-<div><h1 className="serif" style={{fontSize:24,fontWeight:600,color:"#FDE68A"}}>Body Bio Balance Consultancy</h1><p style={{fontSize:11,color:"#A8A29E",marginTop:2}}>Client Management Hub</p></div>
-<div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-{toast&&<span style={{background:"#166534",color:"#BBF7D0",padding:"5px 12px",borderRadius:8,fontSize:12}}>{toast}</span>}
-{["Awaiting Payment","Payment Received","Active Client"].map(function(st){return <div key={st} style={{background:"#292524",borderRadius:8,padding:"5px 10px",fontSize:11}}><span style={{color:"#A8A29E"}}>{st.split(" ")[0]}: </span><span style={{color:"#FDE68A",fontWeight:600}}>{cnt(st)}</span></div>;})}
-<button className="btn" onClick={function(){setShowImport(true);setImportErr("");setImportJson("");}} style={{background:"#16A34A",color:"white",padding:"8px 14px",fontWeight:600}}>Import</button>
-<button className="btn" onClick={function(){setShowAdd(true);}} style={{background:"#F59E0B",color:"#1C1917",padding:"8px 14px",fontWeight:600}}>+ Add</button>
-</div>
-</div>
-<div style={{padding:"12px 24px 0",display:"flex",gap:4,borderBottom:"1px solid #E8E5DF",background:"white",overflowX:"auto"}}>
-{[["pipeline","Pipeline"],["templates","Templates"],["checklist","Checklist"],["ai-compose","AI Compose"],["profile","Profile"]].map(function(it){return <button key={it[0]} className={"tab"+(tab===it[0]?" active":"")} onClick={function(){setTab(it[0]);}}>{it[1]}</button>;})}
-</div>
-<div style={{padding:"18px 24px",display:"flex",gap:18,alignItems:"flex-start"}}>
-<div className="card" style={{width:265,flexShrink:0}}>
-<div style={{padding:"12px 14px",borderBottom:"1px solid #F5F3EE"}}><input placeholder="Search..." value={search} onChange={function(e){setSearch(e.target.value);}} style={{marginBottom:8}}/><select value={fStage} onChange={function(e){setFStage(e.target.value);}}><option>All</option>{STAGES.map(function(s){return <option key={s}>{s}</option>;})}</select></div>
-<div className="scroll" style={{maxHeight:560}}>
-{filtered.length===0&&<div style={{padding:20,textAlign:"center"}}><p style={{color:"#A8A29E",fontSize:13}}>No clients yet</p></div>}
-{filtered.map(function(c){return(
-<div key={c.id} className={"crow"+(sel&&sel.id===c.id?" sel":"")} onClick={function(){setSel(c);setAiMsg("");setAiP("");}}>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-<div style={{flex:1,minWidth:0}}>
-<div style={{display:"flex",alignItems:"center",gap:5}}><p style={{fontWeight:500,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</p>{c.cc&&<span style={{fontSize:9,fontFamily:"monospace",color:"#A8A29E",background:"#F5F3EE",borderRadius:4,padding:"1px 5px",flexShrink:0}}>#{c.cc}</span>}</div>
-<p style={{fontSize:11,color:"#78716C",marginTop:1}}>{c.plan||c.service||"No plan"}</p>
-</div>
-<span className="tag" style={{background:SC[c.stage]&&SC[c.stage].bg,color:SC[c.stage]&&SC[c.stage].accent,fontSize:9,flexShrink:0,marginLeft:4}}>{c.stage}</span>
-</div>
-<div style={{display:"flex",gap:8,marginTop:4,fontSize:10,color:"#A8A29E"}}>
-<span>{c.source}</span><span>{c.date}</span>
-{hasCare(c)&&<span style={{color:"#3B82F6"}}>Care</span>}
-{isOffline(c)&&<span style={{color:"#F97316"}}>In-Person</span>}
-</div>
-</div>);})}
-</div>
-</div>
-<div style={{flex:1,minWidth:0}}>
-{!sel&&<div className="card" style={{padding:48,textAlign:"center"}}><p className="serif" style={{fontSize:22,color:"#A8A29E",fontStyle:"italic"}}>Select a client to begin</p></div>}
-{sel&&(function(){
-var s=sel;var color=SC[s.stage]||SC["New Inquiry"];var care=hasCare(s);var offline=isOffline(s);
-return(<div className="fi">
-<div className="card" style={{padding:"14px 20px",marginBottom:14,background:color.bg,borderColor:color.accent+"50"}}>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:10}}>
-<div style={{flex:1}}>
-<div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-<h2 className="serif" style={{fontSize:22,fontWeight:600}}>{s.name}</h2>
-{s.cc&&<span style={{background:"#1C1917",color:"#FDE68A",borderRadius:8,padding:"3px 10px",fontSize:12,fontWeight:700,fontFamily:"monospace"}}>#{s.cc}</span>}
-{care&&<span className="badge" style={{background:"#EFF6FF",color:"#3B82F6",border:"1px solid #BFDBFE"}}>Care Package</span>}
-{offline&&<span className="badge" style={{background:"#FFF4E6",color:"#F97316",border:"1px solid #FED7AA"}}>In-Person</span>}
-</div>
-<div style={{display:"flex",gap:12,marginTop:4,fontSize:12,color:"#57534E",flexWrap:"wrap"}}>
-{s.goal&&<span>{s.goal}</span>}{s.phone&&<span>{s.phone}</span>}{s.email&&<span>{s.email}</span>}
-</div>
-{s.plan&&<p style={{marginTop:4,fontSize:12,color:"#92400E",fontWeight:500}}>{s.plan} ({s.ct})</p>}
-{s.conditions&&<p style={{marginTop:3,fontSize:12,color:"#78716C",fontStyle:"italic"}}>{s.conditions}</p>}
-{s.meetLink&&<p style={{marginTop:3,fontSize:12}}><a href={s.meetLink} target="_blank" rel="noopener noreferrer" style={{color:"#9333EA"}}>Meet: {s.meetLink}</a></p>}
-</div>
-<div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}}>
-<span className="pill" style={{background:color.accent,color:"white"}}>{s.stage}</span>
-<select value={s.stage} onChange={function(e){upd(s.id,{stage:e.target.value});showToast("Stage updated!");}} style={{fontSize:11,padding:"4px 8px",width:"auto",borderColor:color.accent}}>
-{STAGES.map(function(st){return <option key={st}>{st}</option>;})}
-</select>
-<div style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"flex-end"}}>
-<button className="btn" onClick={function(){initiateMove(s,-1);}} disabled={STAGES.indexOf(s.stage)===0} style={{background:"white",border:"1px solid #E8E5DF",padding:"5px 10px",fontSize:11,color:"#57534E"}}>Back</button>
-<button className="btn" onClick={function(){initiateMove(s,1);}} disabled={STAGES.indexOf(s.stage)===STAGES.length-1} style={{background:color.accent,color:"white",padding:"5px 10px",fontSize:11}}>Next Stage</button>
-<button className="btn" onClick={function(){setEditData(Object.assign({},s));setShowEdit(true);}} style={{background:"#F59E0B",color:"#1C1917",padding:"5px 10px",fontSize:11,fontWeight:600}}>Edit</button>
-{(s.stage==="Session Confirmed"||s.stage==="Active Client")&&<button className="btn" onClick={function(){openSend(s,s.stage,"reminder",true);}} style={{background:"#9333EA",color:"white",padding:"5px 10px",fontSize:11}}>Reminder</button>}
-</div>
-</div>
-</div>
-</div>
-{tab==="pipeline"&&<div className="card" style={{padding:18}}>
-<h3 className="serif" style={{fontSize:18,marginBottom:14}}>Journey Pipeline</h3>
-<div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8}}>
-{STAGES.filter(function(st){return st!=="Care Package Dispatched"||care;}).map(function(stage){var isCur=s.stage===stage;var isDone=STAGES.indexOf(s.stage)>STAGES.indexOf(stage);return(<div key={stage} style={{flex:"1 0 95px"}}><div style={{display:"flex",alignItems:"center",gap:4,marginBottom:6}}><span className="dot" style={{background:SC[stage]&&SC[stage].dot}}></span><p style={{fontSize:9,fontWeight:600,color:"#57534E",textTransform:"uppercase",letterSpacing:".04em",lineHeight:1.3}}>{stage}</p></div><div style={{padding:"8px 10px",borderRadius:10,background:SC[stage]&&SC[stage].bg,border:"1.5px solid "+(isCur?SC[stage]&&SC[stage].accent:"transparent"),minHeight:44}}>{isCur?<div><p style={{fontSize:12,fontWeight:600}}>{s.name.split(" ")[0]}</p><p style={{fontSize:10,color:"#78716C",marginTop:1}}>{s.date}</p></div>:<p style={{fontSize:10,color:isDone?"#22C55E":"#D6D3D1",fontStyle:"italic"}}>{isDone?"Done":"Upcoming"}</p>}</div><p style={{fontSize:9,color:"#A8A29E",textAlign:"center",marginTop:3}}>{cnt(stage)}</p></div>);})}
-</div>
-</div>}
-{tab==="templates"&&<div className="card" style={{padding:18}}>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
-<h3 className="serif" style={{fontSize:18}}>Message Templates</h3>
-<div style={{display:"flex",gap:6}}><button className={"chbtn"+(ch==="wa"?" active":"")} onClick={function(){setCh("wa");}}>WhatsApp</button><button className={"chbtn"+(ch==="em"?" active":"")} onClick={function(){setCh("em");}}>Email</button></div>
-</div>
-{[{label:"Payment Request",type:"payment"},{label:care?"Care Package Dispatched":"Session Confirmation",type:care?"care_dispatch":"session"},{label:"Session Reminder",type:"reminder"},{label:"Follow-up",type:"followup"}].map(function(it){var msg=buildMsg(s,it.type,ch,s.meetLink||"[MEET LINK]");return(<div key={it.label} style={{marginBottom:16}}><p style={{fontSize:11,fontWeight:600,color:"#57534E",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>{it.label}</p><div style={{position:"relative"}}><textarea value={msg} readOnly rows={5} style={{fontSize:12,lineHeight:1.65,background:"#FAFAF7",resize:"none",color:"#292524"}}/><button className="btn" onClick={function(){cp(msg,it.label);}} style={{position:"absolute",top:8,right:8,background:"#1C1917",color:"white",padding:"4px 10px",fontSize:10}}>{copied===it.label?"Copied!":"Copy"}</button></div>{ch==="wa"&&s.phone&&<a href={"https://wa.me/"+s.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(msg)} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",marginTop:5,background:"#22C55E",color:"white",padding:"5px 12px",borderRadius:8,fontSize:11,fontWeight:500,textDecoration:"none"}}>Open in WhatsApp</a>}{ch==="em"&&s.email&&<a href={"mailto:"+s.email} style={{display:"inline-block",marginTop:5,background:"#3B82F6",color:"white",padding:"5px 12px",borderRadius:8,fontSize:11,fontWeight:500,textDecoration:"none"}}>Open in Mail</a>}</div>);})}
-</div>}
-{tab==="checklist"&&<div className="card" style={{padding:18}}><h3 className="serif" style={{fontSize:18,marginBottom:4}}>Checklist</h3><p style={{fontSize:12,color:"#A8A29E",marginBottom:12}}>Tasks for {s.stage}</p>{(CHECKLIST[s.stage]||[]).map(function(item){var key=s.id+"-"+item;var done=checked[key];return(<div key={item} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid #F5F3EE"}}><div onClick={function(){setChecked(function(p){var nw=Object.assign({},p);nw[key]=!p[key];return nw;});}} style={{width:20,height:20,borderRadius:6,border:"2px solid "+(done?color.accent:"#D6D3D1"),background:done?color.accent:"white",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{done&&<span style={{color:"white",fontSize:10,fontWeight:700}}>v</span>}</div><p style={{fontSize:13,textDecoration:done?"line-through":"none",color:done?"#A8A29E":"#292524"}}>{item}</p></div>);})}
-<div style={{marginTop:12,padding:"8px 12px",background:"#F5F3EE",borderRadius:10}}><p style={{fontSize:12,color:"#78716C"}}>{(CHECKLIST[s.stage]||[]).filter(function(item){return checked[s.id+"-"+item];}).length} / {(CHECKLIST[s.stage]||[]).length} completed</p></div>
-</div>}
-{tab==="ai-compose"&&<div className="card" style={{padding:18}}><h3 className="serif" style={{fontSize:18,marginBottom:4}}>AI Compose</h3><p style={{fontSize:12,color:"#A8A29E",marginBottom:10}}>Generate a message for {s.name.split(" ")[0]}</p><div style={{display:"flex",gap:6,marginBottom:10}}><button className={"chbtn"+(ch==="wa"?" active":"")} onClick={function(){setCh("wa");}}>WhatsApp</button><button className={"chbtn"+(ch==="em"?" active":"")} onClick={function(){setCh("em");}}>Email</button><button className={"chbtn"+(ch==="ig"?" active":"")} onClick={function(){setCh("ig");}}>Instagram</button></div><textarea placeholder="e.g. Follow up on diabetes meal plan, encourage next session" value={aiP} onChange={function(e){setAiP(e.target.value);}} rows={3} style={{marginBottom:10,lineHeight:1.6}}/><button className="aibtn" onClick={genAi} disabled={aiLoad||!aiP.trim()}>{aiLoad?<span className="pulse">Generating...</span>:"Generate Message"}</button>{aiMsg&&<div className="fi" style={{marginTop:12,position:"relative"}}><div style={{background:"#FAF5FF",border:"1px solid #E9D5FF",borderRadius:10,padding:12}}><pre style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,lineHeight:1.75,whiteSpace:"pre-wrap",color:"#292524"}}>{aiMsg}</pre></div><button className="btn" onClick={function(){cp(aiMsg,"ai");}} style={{position:"absolute",top:8,right:8,background:"#7C3AED",color:"white",padding:"4px 10px",fontSize:10}}>{copied==="ai"?"Copied!":"Copy"}</button></div>}</div>}
-{tab==="profile"&&<div className="card" style={{padding:18}}><h3 className="serif" style={{fontSize:18,marginBottom:12}}>Full Client Profile</h3>
-{[["Personal","#FAFAF7","#E8E5DF","#A8A29E",[["Code",s.cc],["Name",s.name],["Email",s.email],["Phone",s.phone],["DOB",s.dob],["Gender",s.gender],["City",s.city],["Source",s.source]]],["Booking","#FAFAF7","#E8E5DF","#A8A29E",[["Service",s.service],["Type",s.ct],["Plan",s.plan],["Ref Code",s.refCode],["Session",s.sesMode],["Pref Date",s.prefDate],["Weekend",s.prefWE],["Weekday",s.prefWD],["Meet Link",s.meetLink],["Stage",s.stage]]],["Health","#FFF8F0","#FDE68A","#92400E",[["Goals",s.goal],["Conditions",s.conditions],["On Meds?",s.onMed],["Medications",s.meds],["Labs",s.labs],["Prev Nutri?",s.prevNutri]]],["History","#F0FDF4","#BBF7D0","#166534",[["Worked Before?",s.workedBefore],["Last Program",s.lastProgram],["Progress",s.progress],["Notes",s.extraNotes]]],
-      ...(hasCare(s)?[["Delivery Address","#EFF6FF","#BFDBFE","#1D4ED8",[["Calling Phone",s.callingPhone],["Address Line 1",s.deliveryLine1],["Address Line 2",s.deliveryLine2],["City, State",s.deliveryCity],["PIN Code",s.deliveryPin],["Landmark",s.deliveryLandmark],["Delivery Time",s.deliveryTime],["Preferred Address?",s.isPreferredAddress],["Final Confirmation",s.finalConfirmation]]]]:[])
-    ].map(function(sec){var vis=sec[4].filter(function(f){return f[1];});if(!vis.length)return null;return(<div key={sec[0]} style={{marginBottom:14}}><p style={{fontSize:10,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>{sec[0]}</p><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{vis.map(function(f){return(<div key={f[0]} style={{background:sec[1],borderRadius:10,padding:"10px 12px",border:"1px solid "+sec[2]}}><p style={{fontSize:10,fontWeight:600,color:sec[3],textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>{f[0]}</p><p style={{fontSize:13,color:"#1C1917",lineHeight:1.5,wordBreak:"break-word"}}>{String(f[1])}</p></div>);})}</div></div>);})}</div>}
-</div>);})()}
-</div>
-</div>
-{showSend&&sendCtx&&<div className="overlay" onClick={function(){setShowSend(false);}}><div className="modal fi" onClick={function(e){e.stopPropagation();}}>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-<h2 className="serif" style={{fontSize:20}}>{sendCtx.isReminder?"Send Reminder":"Move to: "+sendCtx.next}</h2>
-{calLoad&&<span style={{fontSize:12,color:"#9333EA"}}>Creating calendar event...</span>}
-</div>
-<p style={{fontSize:12,color:"#78716C",marginBottom:14}}>Review and edit messages before sending. Click "Confirm" to update the client stage.</p>
-<div style={{marginBottom:12}}>
-<p style={{fontSize:11,fontWeight:600,color:"#57534E",marginBottom:6,textTransform:"uppercase"}}>WhatsApp Message</p>
-<textarea value={sendWa} onChange={function(e){setSendWa(e.target.value);}} rows={6} style={{fontSize:12,lineHeight:1.6,marginBottom:8}}/>
-{sendCtx.c.phone&&<a href={"https://wa.me/"+sendCtx.c.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(sendWa)} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",background:"#22C55E",color:"white",padding:"7px 14px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Send on WhatsApp</a>}
-</div>
-<div style={{marginBottom:16}}>
-<p style={{fontSize:11,fontWeight:600,color:"#57534E",marginBottom:6,textTransform:"uppercase"}}>Email Message</p>
-<textarea value={sendEmail} onChange={function(e){setSendEmail(e.target.value);}} rows={7} style={{fontSize:12,lineHeight:1.6,marginBottom:8}}/>
-{sendCtx.c.email&&<a href={"mailto:"+sendCtx.c.email} style={{display:"inline-block",background:"#3B82F6",color:"white",padding:"7px 14px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Open in Mail</a>}
-</div>
-<div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:10,padding:"10px 14px",marginBottom:14}}>
-<p style={{fontSize:12,color:"#166534"}}>Send your messages first, then click Confirm to update the client stage.</p>
-</div>
-<div style={{display:"flex",gap:10}}>
-<button className="btn" onClick={confirmMove} disabled={calLoad} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>{sendCtx.isReminder?"Done":"Confirm & Move Stage"}</button>
-<button className="btn" onClick={function(){setShowSend(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
-</div>
-</div></div>}
-{showEdit&&editData&&<div className="overlay" onClick={function(){setShowEdit(false);}}><div className="modal fi" onClick={function(e){e.stopPropagation();}}>
-<h2 className="serif" style={{fontSize:20,marginBottom:14}}>Edit Client</h2>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-<div className="field"><label>Full Name</label><input value={editData.name||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{name:e.target.value});})}}/></div>
-<div className="field"><label>WhatsApp</label><input value={editData.phone||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{phone:e.target.value});})}}/></div>
-<div className="field"><label>Email</label><input value={editData.email||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{email:e.target.value});})}}/></div>
-<div className="field"><label>City</label><input value={editData.city||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{city:e.target.value});})}}/></div>
-<div className="field"><label>Date of Birth</label><input value={editData.dob||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{dob:e.target.value});})}}/></div>
-<div className="field"><label>Preferred Date</label><input value={editData.prefDate||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{prefDate:e.target.value});})}}/></div>
-<div className="field"><label>Selected Plan</label><input value={editData.plan||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{plan:e.target.value});})}}/></div>
-<div className="field"><label>Health Goals</label><input value={editData.goal||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{goal:e.target.value});})}}/></div>
-<div className="field"><label>Gender</label><select value={editData.gender||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{gender:e.target.value});});}}>  <option value="">Select</option>{["Male","Female","Other"].map(function(x){return <option key={x}>{x}</option>;})}</select></div>
-<div className="field"><label>Session Mode</label><select value={editData.sesMode||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{sesMode:e.target.value});});}}><option value="">Select</option>{["Online","In-person"].map(function(x){return <option key={x}>{x}</option>;})}</select></div>
-<div className="field"><label>Client Type</label><select value={editData.ct||"New Client"} onChange={function(e){setEditData(function(p){return Object.assign({},p,{ct:e.target.value});});}}>{["New Client","Returning/Referred"].map(function(x){return <option key={x}>{x}</option>;})}</select></div>
-<div className="field"><label>Stage</label><select value={editData.stage||"New Inquiry"} onChange={function(e){setEditData(function(p){return Object.assign({},p,{stage:e.target.value});});}}>{STAGES.map(function(x){return <option key={x}>{x}</option>;})}</select></div>
-</div>
-<div className="field"><label>Medical Conditions</label><textarea value={editData.conditions||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{conditions:e.target.value});});}} rows={2}/></div>
-<div className="field"><label>Medications</label><textarea value={editData.meds||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{meds:e.target.value});});}} rows={2}/></div>
-<div className="field"><label>Extra Notes</label><textarea value={editData.extraNotes||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{extraNotes:e.target.value});});}} rows={2}/></div>
-{hasCare(editData)&&<div>
-<p style={{fontSize:11,fontWeight:600,color:"#1D4ED8",marginBottom:8,marginTop:4,textTransform:"uppercase",letterSpacing:".05em"}}>Delivery Address</p>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-<div className="field"><label>Calling Phone</label><input value={editData.callingPhone||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{callingPhone:e.target.value});})}}/></div>
-<div className="field"><label>PIN Code</label><input value={editData.deliveryPin||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryPin:e.target.value});})}}/></div>
-<div className="field" style={{gridColumn:"1/-1"}}><label>Address Line 1</label><input value={editData.deliveryLine1||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryLine1:e.target.value});})}}/></div>
-<div className="field" style={{gridColumn:"1/-1"}}><label>Address Line 2</label><input value={editData.deliveryLine2||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryLine2:e.target.value});})}}/></div>
-<div className="field"><label>City, State</label><input value={editData.deliveryCity||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryCity:e.target.value});})}}/></div>
-<div className="field"><label>Delivery Time</label><input value={editData.deliveryTime||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryTime:e.target.value});})}}/></div>
-<div className="field" style={{gridColumn:"1/-1"}}><label>Landmark</label><input value={editData.deliveryLandmark||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryLandmark:e.target.value});})}}/></div>
-</div>
-</div>}
-<div style={{display:"flex",gap:10,marginTop:12}}>
-<button className="btn" onClick={function(){if(editData&&editData.name){upd(editData.id,editData);setShowEdit(false);}}} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>Save</button>
-<button className="btn" onClick={function(){setShowEdit(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
-</div>
-</div></div>}
-{showImport&&<div className="overlay" onClick={function(){setShowImport(false);}}><div className="modal fi" onClick={function(e){e.stopPropagation();}}>
-<h2 className="serif" style={{fontSize:20,marginBottom:8}}>Import from Google Sheets</h2>
-<p style={{fontSize:13,color:"#78716C",marginBottom:8}}>Run syncAllClients() in Apps Script, copy a CHUNK line from the log, paste below.</p>
-<div style={{background:"#FFF8F0",border:"1px solid #FDE68A",borderRadius:10,padding:"10px 14px",marginBottom:10}}><p style={{fontSize:12,color:"#92400E"}}>Copy only the part after CHUNK_0: - starts with [ and ends with ]</p></div>
-<textarea placeholder="Paste JSON here..." value={importJson} onChange={function(e){setImportJson(e.target.value);}} rows={8} style={{fontSize:12,lineHeight:1.5,fontFamily:"monospace",marginBottom:10,background:"#FAFAF7"}}/>
-{importErr&&<p style={{fontSize:12,color:"#E11D48",marginBottom:10,background:"#FFF1F2",padding:"8px 12px",borderRadius:8}}>{importErr}</p>}
-<div style={{display:"flex",gap:10}}><button className="btn" onClick={doImport} style={{background:"#16A34A",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>Import Now</button><button className="btn" onClick={function(){setShowImport(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button></div>
-</div></div>}
-{showAdd&&<div className="overlay" onClick={function(){setShowAdd(false);}}><div className="modal fi" onClick={function(e){e.stopPropagation();}}>
-<h2 className="serif" style={{fontSize:20,marginBottom:14}}>Add New Client</h2>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-<div className="field" style={{gridColumn:"1/-1"}}><label>Full Name *</label><input value={newC.name} onChange={function(e){setNewC(function(p){return Object.assign({},p,{name:e.target.value});});}}/></div>
-<div className="field"><label>WhatsApp</label><input value={newC.phone} onChange={function(e){setNewC(function(p){return Object.assign({},p,{phone:e.target.value});})}}/></div>
-<div className="field"><label>Email</label><input value={newC.email} onChange={function(e){setNewC(function(p){return Object.assign({},p,{email:e.target.value});})}}/></div>
-<div className="field"><label>Health Goal</label><input value={newC.goal} onChange={function(e){setNewC(function(p){return Object.assign({},p,{goal:e.target.value});})}}/></div>
-<div className="field"><label>Plan</label><input value={newC.plan} onChange={function(e){setNewC(function(p){return Object.assign({},p,{plan:e.target.value});})}}/></div>
-<div className="field"><label>Medical Conditions</label><input value={newC.conditions} onChange={function(e){setNewC(function(p){return Object.assign({},p,{conditions:e.target.value});})}}/></div>
-<div className="field"><label>Medications</label><input value={newC.meds} onChange={function(e){setNewC(function(p){return Object.assign({},p,{meds:e.target.value});})}}/></div>
-<div className="field"><label>Preferred Date</label><input value={newC.prefDate} onChange={function(e){setNewC(function(p){return Object.assign({},p,{prefDate:e.target.value});})}}/></div>
-<div className="field"><label>Session Mode</label><select value={newC.sesMode} onChange={function(e){setNewC(function(p){return Object.assign({},p,{sesMode:e.target.value});});}}>  {["Online","In-person"].map(function(x){return <option key={x}>{x}</option>;})}</select></div>
-<div className="field"><label>Source</label><select value={newC.source} onChange={function(e){setNewC(function(p){return Object.assign({},p,{source:e.target.value});});}}>  {["Instagram","WhatsApp","Email","Referral","Google Form","Other"].map(function(x){return <option key={x}>{x}</option>;})}</select></div>
-<div className="field"><label>Stage</label><select value={newC.stage} onChange={function(e){setNewC(function(p){return Object.assign({},p,{stage:e.target.value});});}}>  {STAGES.map(function(x){return <option key={x}>{x}</option>;})}</select></div>
-</div>
-<div style={{display:"flex",gap:10,marginTop:12}}><button className="btn" onClick={addCli} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>Add Client</button><button className="btn" onClick={function(){setShowAdd(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button></div>
-</div></div>}
-</div>);
+
+async function createCalEvent(c) {
+  try {
+    var token = localStorage.getItem("gapi_token");
+    if (!token) return null;
+    var sess = curSess(c);
+    var sl = sess.prefDate || sess.prefWE || sess.prefWD || "";
+    var start = sl ? new Date(sl) : new Date();
+    if (isNaN(start.getTime())) start = new Date();
+    var end = new Date(start.getTime()+3600000);
+    var ev = {
+      summary:"Session: "+c.name+" - "+(sess.service||sess.plan||"Consultation"),
+      description:"Client: "+c.name+"\nPhone: "+c.phone+"\nEmail: "+c.email+"\nPlan: "+sess.plan+"\nGoals: "+c.goal,
+      start:{dateTime:start.toISOString(),timeZone:"Asia/Kolkata"},
+      end:{dateTime:end.toISOString(),timeZone:"Asia/Kolkata"},
+      attendees:c.email?[{email:c.email}]:[]
+    };
+    if (!isOffline(c)) ev.conferenceData = {createRequest:{requestId:"bbb-"+c.id,conferenceSolutionKey:{type:"hangoutsMeet"}}};
+    var url = "https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all";
+    var res = await fetch(url,{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(ev)});
+    var data = await res.json();
+    if (data.error) return null;
+    var ep = data.conferenceData && data.conferenceData.entryPoints && data.conferenceData.entryPoints.find(function(e){return e.entryPointType==="video";});
+    return ep ? ep.uri : null;
+  } catch(e) { return null; }
+}
+
+function App() {
+  var r1=useState([]);var clients=r1[0];var setClients=r1[1];
+  var r2=useState(null);var sel=r2[0];var setSel=r2[1];
+  var r3=useState("pipeline");var tab=r3[0];var setTab=r3[1];
+  var r4=useState("wa");var ch=r4[0];var setCh=r4[1];
+  var r5=useState("");var copied=r5[0];var setCopied=r5[1];
+  var r6=useState({});var checked=r6[0];var setChecked=r6[1];
+  var r7=useState(false);var showAdd=r7[0];var setShowAdd=r7[1];
+  var r8=useState(false);var showImport=r8[0];var setShowImport=r8[1];
+  var r9=useState(false);var aiLoad=r9[0];var setAiLoad=r9[1];
+  var r10=useState("");var aiMsg=r10[0];var setAiMsg=r10[1];
+  var r11=useState("");var aiP=r11[0];var setAiP=r11[1];
+  var r12=useState("");var search=r12[0];var setSearch=r12[1];
+  var r13=useState("All");var fStage=r13[0];var setFStage=r13[1];
+  var r14=useState("");var toast=r14[0];var setToast=r14[1];
+  var r15=useState("");var importJson=r15[0];var setImportJson=r15[1];
+  var r16=useState("");var importErr=r16[0];var setImportErr=r16[1];
+  var r17=useState({name:"",stage:"New Inquiry",source:"Instagram",goal:"",phone:"",email:"",conditions:"",meds:"",sesMode:"Online",plan:"",prefDate:""});var newC=r17[0];var setNewC=r17[1];
+  var r18=useState(false);var showEdit=r18[0];var setShowEdit=r18[1];
+  var r19=useState(null);var editData=r19[0];var setEditData=r19[1];
+  var r20=useState(false);var showSend=r20[0];var setShowSend=r20[1];
+  var r21=useState(null);var sendCtx=r21[0];var setSendCtx=r21[1];
+  var r22=useState("");var sendWa=r22[0];var setSendWa=r22[1];
+  var r23=useState("");var sendEm=r23[0];var setSendEm=r23[1];
+  var r24=useState(false);var calLoad=r24[0];var setCalLoad=r24[1];
+  var r25=useState(false);var showSchedEdit=r25[0];var setShowSchedEdit=r25[1];
+  var r26=useState(null);var schedEditItem=r26[0];var setSchedEditItem=r26[1];
+  var r27=useState("");var schedEditTime=r27[0];var setSchedEditTime=r27[1];
+
+  useEffect(function(){
+    try{var d=localStorage.getItem("bbb_c");if(d)setClients(JSON.parse(d));}catch(e){}
+    try{var d2=localStorage.getItem("bbb_ch");if(d2)setChecked(JSON.parse(d2));}catch(e){}
+  },[]);
+  useEffect(function(){try{localStorage.setItem("bbb_c",JSON.stringify(clients));}catch(e){};},[clients]);
+  useEffect(function(){try{localStorage.setItem("bbb_ch",JSON.stringify(checked));}catch(e){};},[checked]);
+  useEffect(function(){
+    window.__receiveSheetData=function(rows){
+      var parsed=rows.map(parseRow);
+      setClients(function(prev){
+        var merged=detectAndMerge(parsed,prev);
+        showToast("Clients synced!");
+        return merged;
+      });
+    };
+    return function(){delete window.__receiveSheetData;};
+  },[]);
+
+  function showToast(msg){setToast(msg);setTimeout(function(){setToast("");},4000);}
+
+  function updClient(id,u){
+    setClients(function(prev){return prev.map(function(c){
+      if(c.id!==id)return c;
+      var sessFields=["stage","meetLink","sessionNotes"];
+      var sessUpd={};var clientUpd={};
+      Object.keys(u).forEach(function(k){
+        if(sessFields.indexOf(k)>=0)sessUpd[k]=u[k];
+        else clientUpd[k]=u[k];
+      });
+      var updated=Object.assign({},c,clientUpd);
+      if(Object.keys(sessUpd).length>0){
+        var sessions=c.sessions?c.sessions.slice():[];
+        var idx=c.currentSession||0;
+        if(sessions[idx])sessions[idx]=Object.assign({},sessions[idx],sessUpd);
+        updated.sessions=sessions;
+      }
+      return updated;
+    });});
+    setSel(function(p){
+      if(!p||p.id!==id)return p;
+      var sessFields=["stage","meetLink","sessionNotes"];
+      var sessUpd={};var clientUpd={};
+      Object.keys(u).forEach(function(k){
+        if(sessFields.indexOf(k)>=0)sessUpd[k]=u[k];
+        else clientUpd[k]=u[k];
+      });
+      var updated=Object.assign({},p,clientUpd);
+      if(Object.keys(sessUpd).length>0){
+        var sessions=p.sessions?p.sessions.slice():[];
+        var idx=p.currentSession||0;
+        if(sessions[idx])sessions[idx]=Object.assign({},sessions[idx],sessUpd);
+        updated.sessions=sessions;
+      }
+      return updated;
+    });
+  }
+
+  function cp(text,lbl){navigator.clipboard.writeText(text);setCopied(lbl);setTimeout(function(){setCopied("");},2000);}
+
+  var filtered=clients.filter(function(c){
+    return (fStage==="All"||cStage(c)===fStage)&&
+      (c.name.toLowerCase().indexOf(search.toLowerCase())>=0||(c.goal||"").toLowerCase().indexOf(search.toLowerCase())>=0);
+  });
+  function cnt(st){return clients.filter(function(c){return cStage(c)===st;}).length;}
+
+  var allScheduled = getAllScheduled(clients);
+  var dueCount = allScheduled.filter(function(m){return getSchedStatus(m.scheduledFor)!=="future";}).length;
+
+  function openSend(c, nextStage, msgType, isReminder) {
+    var wa = buildMsg(c, msgType, "wa");
+    var em = buildMsg(c, msgType, "em");
+    setSendCtx({c:c,next:nextStage,msgType:msgType,isReminder:!!isReminder});
+    setSendWa(wa); setSendEm(em); setShowSend(true);
+  }
+
+  function initiateMove(c, dir) {
+    var idx = STAGES.indexOf(cStage(c));
+    var next = STAGES[idx+dir];
+    if (!next) return;
+    if (dir===-1) { updClient(c.id,{stage:next}); return; }
+    var msgType = "";
+    if (next==="Awaiting Payment") msgType="payment";
+    else if (next==="Payment Received") msgType=hasCare(c)?"care_dispatch":"session_confirm";
+    else if (next==="Care Package Dispatched") msgType="care_dispatch";
+    else if (next==="Session Confirmed") msgType="session_confirm";
+    else if (next==="Follow-up") msgType="followup";
+    if (msgType) openSend(c,next,msgType,false);
+    else { updClient(c.id,{stage:next}); }
+  }
+
+  async function confirmMove() {
+    if (!sendCtx) return;
+    var c=sendCtx.c; var next=sendCtx.next;
+    if (!sendCtx.isReminder && (next==="Payment Received"||next==="Session Confirmed") && !isOffline(c)) {
+      setCalLoad(true);
+      var ml = await createCalEvent(c);
+      setCalLoad(false);
+      if (ml) {
+        updClient(c.id,{meetLink:ml});
+        setSendWa(function(p){return p.replace("[MEET LINK]",ml);});
+        setSendEm(function(p){return p.replace("[MEET LINK]",ml);});
+      }
+    }
+    if (!sendCtx.isReminder) {
+      var newScheds = scheduleMessages(c, next);
+      updClient(c.id,{stage:next});
+      setClients(function(prev){return prev.map(function(cl){
+        if(cl.id!==c.id)return cl;
+        return Object.assign({},cl,{scheduledMessages:newScheds});
+      });});
+    }
+    setShowSend(false);
+    showToast(sendCtx.isReminder?"Reminder ready!":"Moved to "+next+"! Messages scheduled.");
+  }
+
+  function markSchedSent(schedId, clientId) {
+    setClients(function(prev){return prev.map(function(c){
+      if(c.id!==clientId)return c;
+      var msgs=(c.scheduledMessages||[]).map(function(m){
+        return m.id===schedId?Object.assign({},m,{sent:true}):m;
+      });
+      return Object.assign({},c,{scheduledMessages:msgs});
+    });});
+    showToast("Message marked as sent!");
+  }
+
+  function updateSchedTime(schedId, clientId, newTime) {
+    setClients(function(prev){return prev.map(function(c){
+      if(c.id!==clientId)return c;
+      var msgs=(c.scheduledMessages||[]).map(function(m){
+        return m.id===schedId?Object.assign({},m,{scheduledFor:new Date(newTime).toISOString()}):m;
+      });
+      return Object.assign({},c,{scheduledMessages:msgs});
+    });});
+    setShowSchedEdit(false);
+    showToast("Schedule updated!");
+  }
+
+  function doImport(){
+    setImportErr("");
+    if(!importJson.trim()){setImportErr("Paste your JSON first.");return;}
+    try{
+      var rows=JSON.parse(importJson.trim());
+      if(!Array.isArray(rows)){setImportErr("Must be a JSON array.");return;}
+      var parsed=rows.map(parseRow);
+      setClients(function(prev){
+        var merged=detectAndMerge(parsed,prev);
+        showToast((merged.length-prev.length)+" client(s) imported!");
+        return merged;
+      });
+      setShowImport(false);setImportJson("");
+    }catch(e){setImportErr("Parse error: "+e.message);}
+  }
+
+  function addCli(){
+    if(!newC.name)return;
+    var ds=new Date().toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    var session={sessionNum:1,date:ds,plan:newC.plan||"",service:"",ct:newC.source==="Referral"?"Returning":"New Client",stage:newC.stage,sesMode:newC.sesMode||"Online",prefDate:newC.prefDate||"",prefWE:"",prefWD:"",prefSlot:newC.prefDate||"",extraNotes:"",labs:"",meetLink:"",refCode:"",sessionNotes:"",deliveryLine1:"",deliveryLine2:"",deliveryCity:"",deliveryPin:"",deliveryLandmark:"",deliveryTime:"",isPreferredAddress:"",finalConfirmation:"",callingPhone:""};
+    setClients(function(prev){
+      var code=genCode(prev,new Date());
+      var c=Object.assign({},newC,{id:Date.now(),date:ds,cc:code,referredBy:"",referredByName:"",referralCount:0,sessions:[session],currentSession:0,scheduledMessages:[]});
+      return prev.concat([c]);
+    });
+    setShowAdd(false);
+    setNewC({name:"",stage:"New Inquiry",source:"Instagram",goal:"",phone:"",email:"",conditions:"",meds:"",sesMode:"Online",plan:"",prefDate:""});
+  }
+
+  async function genAi(){
+    if(!sel||!aiP.trim())return;
+    setAiLoad(true);setAiMsg("");
+    try{
+      var sess=curSess(sel);
+      var res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,
+          system:"You are Taniya, a Certified Diabetes Educator and Nutritionist. Write warm, professional, empathetic client messages. Sign off as Taniya.",
+          messages:[{role:"user",content:"Client: "+sel.name+". Stage: "+cStage(sel)+". Goal: "+sel.goal+". Conditions: "+sel.conditions+". Plan: "+(sess.plan||"")+". Channel: "+(ch==="em"?"Email":"WhatsApp")+". Task: "+aiP}]
+        })
+      });
+      var data=await res.json();
+      var t=data.content&&data.content.find(function(b){return b.type==="text";});
+      setAiMsg(t?t.text:"Could not generate.");
+    }catch(e){setAiMsg("Error. Try again.");}
+    setAiLoad(false);
+  }
+
+  var s = sel;
+  var color = s ? (SC[cStage(s)]||SC["New Inquiry"]) : SC["New Inquiry"];
+  var care = s ? hasCare(s) : false;
+  var offline = s ? isOffline(s) : false;
+  var sess = s ? curSess(s) : {};
+
+  return (
+    <div style={{fontFamily:"DM Sans,sans-serif",background:"#F7F6F2",minHeight:"100vh"}}>
+
+      <div style={{background:"#1C1917",color:"white",padding:"14px 22px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+        <div>
+          <h1 className="serif" style={{fontSize:22,fontWeight:600,color:"#FDE68A"}}>Body Bio Balance Consultancy</h1>
+          <p style={{fontSize:11,color:"#A8A29E",marginTop:1}}>Client Management Hub</p>
+        </div>
+        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+          {toast&&<span style={{background:"#166534",color:"#BBF7D0",padding:"4px 10px",borderRadius:8,fontSize:11}}>{toast}</span>}
+          {dueCount>0&&<span style={{background:"#D97706",color:"white",padding:"4px 10px",borderRadius:8,fontSize:11,fontWeight:600}}>{dueCount} message{dueCount>1?"s":""} due</span>}
+          <div style={{background:"#292524",borderRadius:8,padding:"5px 10px",fontSize:11}}><span style={{color:"#A8A29E"}}>Awaiting: </span><span style={{color:"#FDE68A",fontWeight:600}}>{cnt("Awaiting Payment")}</span></div>
+          <div style={{background:"#292524",borderRadius:8,padding:"5px 10px",fontSize:11}}><span style={{color:"#A8A29E"}}>Payment: </span><span style={{color:"#FDE68A",fontWeight:600}}>{cnt("Payment Received")}</span></div>
+          <div style={{background:"#292524",borderRadius:8,padding:"5px 10px",fontSize:11}}><span style={{color:"#A8A29E"}}>Active: </span><span style={{color:"#FDE68A",fontWeight:600}}>{cnt("Active Client")}</span></div>
+          <div style={{background:"#292524",borderRadius:8,padding:"5px 10px",fontSize:11}}><span style={{color:"#A8A29E"}}>Total: </span><span style={{color:"#FDE68A",fontWeight:600}}>{clients.length}</span></div>
+          <button className="btn" onClick={function(){setShowImport(true);setImportErr("");setImportJson("");}} style={{background:"#16A34A",color:"white",padding:"7px 12px",fontWeight:600}}>Import</button>
+          <button className="btn" onClick={function(){setShowAdd(true);}} style={{background:"#F59E0B",color:"#1C1917",padding:"7px 12px",fontWeight:600}}>+ Add</button>
+        </div>
+      </div>
+
+      <div style={{padding:"10px 22px 0",display:"flex",gap:3,borderBottom:"1px solid #E8E5DF",background:"white",overflowX:"auto"}}>
+        {[["today","Today (" + dueCount + ")"],["pipeline","Pipeline"],["timeline","Timeline"],["templates","Templates"],["checklist","Checklist"],["ai-compose","AI Compose"],["profile","Profile"]].map(function(it){
+          return <button key={it[0]} className={"tab"+(tab===it[0]?" active":"")} onClick={function(){setTab(it[0]);}}>{it[1]}</button>;
+        })}
+      </div>
+
+      <div style={{padding:"16px 22px",display:"flex",gap:16,alignItems:"flex-start"}}>
+
+        <div className="card" style={{width:260,flexShrink:0}}>
+          <div style={{padding:"12px 14px",borderBottom:"1px solid #F5F3EE"}}>
+            <input placeholder="Search..." value={search} onChange={function(e){setSearch(e.target.value);}} style={{marginBottom:8}}/>
+            <select value={fStage} onChange={function(e){setFStage(e.target.value);}}>
+              <option>All</option>
+              {STAGES.map(function(st){return <option key={st}>{st}</option>;})}
+            </select>
+          </div>
+          <div className="scroll" style={{maxHeight:560}}>
+            {filtered.length===0&&<div style={{padding:20,textAlign:"center"}}><p style={{color:"#A8A29E",fontSize:13}}>No clients yet</p></div>}
+            {filtered.map(function(c){
+              var cs=cStage(c);var cc=SC[cs]||SC["New Inquiry"];
+              return (
+                <div key={c.id} className={"crow"+(sel&&sel.id===c.id?" sel":"")} onClick={function(){setSel(c);setAiMsg("");setAiP("");}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        <p style={{fontWeight:500,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</p>
+                        {c.cc&&<span style={{fontSize:9,fontFamily:"monospace",color:"#A8A29E",background:"#F5F3EE",borderRadius:4,padding:"1px 4px",flexShrink:0}}>#{c.cc}</span>}
+                      </div>
+                      <p style={{fontSize:11,color:"#78716C",marginTop:1}}>{curSess(c).plan||curSess(c).service||c.goal||"No plan"}</p>
+                    </div>
+                    <span className="tag" style={{background:cc.bg,color:cc.accent,fontSize:9,flexShrink:0,marginLeft:4}}>{cs}</span>
+                  </div>
+                  <div style={{display:"flex",gap:6,marginTop:4,fontSize:10,color:"#A8A29E",flexWrap:"wrap"}}>
+                    <span>{c.source}</span><span>{c.date}</span>
+                    {c.sessions&&c.sessions.length>1&&<span style={{color:"#059669",fontWeight:600}}>x{c.sessions.length}</span>}
+                    {c.referralCount>0&&<span style={{color:"#9333EA"}}>Ref:{c.referralCount}</span>}
+                    {c.referredBy&&<span style={{color:"#D97706"}}>by:{c.referredByName&&c.referredByName.split(" ")[0]}</span>}
+                    {hasCare(c)&&<span style={{color:"#3B82F6"}}>Care</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{flex:1,minWidth:0}}>
+
+          {tab==="today"&&(
+            <div className="card" style={{padding:18}}>
+              <h3 className="serif" style={{fontSize:18,marginBottom:4}}>Today s Messages</h3>
+              <p style={{fontSize:12,color:"#A8A29E",marginBottom:16}}>All scheduled messages due today or overdue</p>
+              {allScheduled.length===0&&<div style={{padding:32,textAlign:"center"}}><p style={{color:"#A8A29E",fontSize:13}}>No scheduled messages yet</p><p style={{color:"#D6D3D1",fontSize:11,marginTop:4}}>Messages are scheduled automatically when you move clients to new stages</p></div>}
+              {allScheduled.map(function(m){
+                var status=getSchedStatus(m.scheduledFor);
+                return (
+                  <div key={m.id} className={"sched "+status}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                      <div>
+                        <p style={{fontWeight:600,fontSize:13}}>{m.clientName}</p>
+                        <p style={{fontSize:11,color:"#78716C",marginTop:1}}>{m.label}</p>
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                        <span style={{fontSize:10,fontWeight:600,color:status==="overdue"?"#E11D48":status==="today"?"#D97706":status==="soon"?"#059669":"#A8A29E"}}>{formatSchedTime(m.scheduledFor)}</span>
+                        <span className="tag" style={{background:status==="overdue"?"#FFF1F2":status==="today"?"#FFFBEB":"#F0FDF4",color:status==="overdue"?"#E11D48":status==="today"?"#D97706":"#059669",fontSize:9,textTransform:"uppercase"}}>{status}</span>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                      {m.phone&&<a href={"https://wa.me/"+m.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(m.waMsg)} target="_blank" rel="noopener noreferrer" style={{background:"#22C55E",color:"white",padding:"5px 10px",borderRadius:8,fontSize:11,fontWeight:500,textDecoration:"none"}}>WhatsApp</a>}
+                      {m.email&&<a href={"mailto:"+m.email} style={{background:"#3B82F6",color:"white",padding:"5px 10px",borderRadius:8,fontSize:11,fontWeight:500,textDecoration:"none"}}>Email</a>}
+                      <button className="btn" onClick={function(){cp(m.waMsg,"sched_"+m.id);}} style={{background:"#F5F3EE",color:"#57534E",padding:"5px 10px",fontSize:11}}>{copied==="sched_"+m.id?"Copied!":"Copy WA"}</button>
+                      <button className="btn" onClick={function(){setSchedEditItem(m);setSchedEditTime(new Date(m.scheduledFor).toISOString().slice(0,16));setShowSchedEdit(true);}} style={{background:"#F5F3EE",color:"#57534E",padding:"5px 10px",fontSize:11}}>Reschedule</button>
+                      <button className="btn" onClick={function(){markSchedSent(m.id,m.clientId);}} style={{background:"#1C1917",color:"white",padding:"5px 10px",fontSize:11}}>Mark Sent</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {!s&&tab!=="today"&&<div className="card" style={{padding:48,textAlign:"center"}}><p className="serif" style={{fontSize:22,color:"#A8A29E",fontStyle:"italic"}}>Select a client to begin</p></div>}
+
+          {s&&tab==="pipeline"&&(
+            <div>
+              <div className="card" style={{padding:"14px 18px",marginBottom:12,background:color.bg,borderColor:color.accent+"50"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:10}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      <h2 className="serif" style={{fontSize:20,fontWeight:600}}>{s.name}</h2>
+                      {s.cc&&<span style={{background:"#1C1917",color:"#FDE68A",borderRadius:8,padding:"3px 8px",fontSize:11,fontWeight:700,fontFamily:"monospace"}}>#{s.cc}</span>}
+                      {care&&<span className="badge" style={{background:"#EFF6FF",color:"#3B82F6",border:"1px solid #BFDBFE"}}>Care Pkg</span>}
+                      {offline&&<span className="badge" style={{background:"#FFF4E6",color:"#F97316",border:"1px solid #FED7AA"}}>In-Person</span>}
+                      {s.sessions&&s.sessions.length>1&&<span className="badge" style={{background:"#ECFDF5",color:"#059669",border:"1px solid #A7F3D0"}}>Session {(s.currentSession||0)+1}/{s.sessions.length}</span>}
+                      {s.referredBy&&<span className="badge" style={{background:"#FFFBEB",color:"#D97706",border:"1px solid #FDE68A"}}>Ref: {s.referredByName}</span>}
+                      {s.referralCount>0&&<span className="badge" style={{background:"#FAF5FF",color:"#9333EA",border:"1px solid #E9D5FF"}}>Referred {s.referralCount}</span>}
+                    </div>
+                    <div style={{display:"flex",gap:10,marginTop:4,fontSize:12,color:"#57534E",flexWrap:"wrap"}}>
+                      {s.goal&&<span>{s.goal}</span>}{s.phone&&<span>{s.phone}</span>}{s.email&&<span>{s.email}</span>}
+                    </div>
+                    {sess.plan&&<p style={{marginTop:4,fontSize:12,color:"#92400E",fontWeight:500}}>{sess.plan} ({sess.ct})</p>}
+                    {s.conditions&&<p style={{marginTop:3,fontSize:12,color:"#78716C",fontStyle:"italic"}}>{s.conditions}</p>}
+                    {sess.meetLink&&<p style={{marginTop:3,fontSize:12}}><a href={sess.meetLink} target="_blank" rel="noopener noreferrer" style={{color:"#9333EA"}}>Meet: {sess.meetLink}</a></p>}
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+                    <span className="pill" style={{background:color.accent,color:"white"}}>{cStage(s)}</span>
+                    <select value={cStage(s)} onChange={function(e){updClient(s.id,{stage:e.target.value});showToast("Stage updated!");}} style={{fontSize:11,padding:"4px 8px",width:"auto",borderColor:color.accent}}>
+                      {STAGES.map(function(st){return <option key={st}>{st}</option>;})}
+                    </select>
+                    <div style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                      <button className="btn" onClick={function(){initiateMove(s,-1);}} disabled={STAGES.indexOf(cStage(s))===0} style={{background:"white",border:"1px solid #E8E5DF",padding:"5px 10px",fontSize:11,color:"#57534E"}}>Back</button>
+                      <button className="btn" onClick={function(){initiateMove(s,1);}} disabled={STAGES.indexOf(cStage(s))===STAGES.length-1} style={{background:color.accent,color:"white",padding:"5px 10px",fontSize:11}}>Next Stage</button>
+                      <button className="btn" onClick={function(){setEditData(Object.assign({},s));setShowEdit(true);}} style={{background:"#F59E0B",color:"#1C1917",padding:"5px 10px",fontSize:11,fontWeight:600}}>Edit</button>
+                      <button className="btn" onClick={function(){openSend(s,cStage(s),"session_reminder",true);}} style={{background:"#9333EA",color:"white",padding:"5px 10px",fontSize:11}}>Reminder</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="card" style={{padding:16}}>
+                <h3 className="serif" style={{fontSize:16,marginBottom:12}}>Journey Pipeline</h3>
+                <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8}}>
+                  {STAGES.filter(function(st){return st!=="Care Package Dispatched"||care;}).map(function(stage){
+                    var isCur=cStage(s)===stage;
+                    var isDone=STAGES.indexOf(cStage(s))>STAGES.indexOf(stage);
+                    var stc=SC[stage]||SC["New Inquiry"];
+                    return (
+                      <div key={stage} style={{flex:"1 0 95px"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:6}}>
+                          <span className="dot" style={{background:stc.dot}}></span>
+                          <p style={{fontSize:9,fontWeight:600,color:"#57534E",textTransform:"uppercase",letterSpacing:".04em",lineHeight:1.3}}>{stage}</p>
+                        </div>
+                        <div style={{padding:"8px 10px",borderRadius:10,background:stc.bg,border:"1.5px solid "+(isCur?stc.accent:"transparent"),minHeight:44}}>
+                          {isCur?<div><p style={{fontSize:12,fontWeight:600}}>{s.name.split(" ")[0]}</p><p style={{fontSize:10,color:"#78716C",marginTop:1}}>{s.date}</p></div>:<p style={{fontSize:10,color:isDone?"#22C55E":"#D6D3D1",fontStyle:"italic"}}>{isDone?"Done":"Upcoming"}</p>}
+                        </div>
+                        <p style={{fontSize:9,color:"#A8A29E",textAlign:"center",marginTop:3}}>{cnt(stage)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {s&&tab==="timeline"&&(
+            <div className="card" style={{padding:18}}>
+              <h3 className="serif" style={{fontSize:18,marginBottom:4}}>Session Timeline</h3>
+              <p style={{fontSize:12,color:"#A8A29E",marginBottom:14}}>Complete history with {s.name.split(" ")[0]}</p>
+              {s.referredBy&&<div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,padding:"10px 14px",marginBottom:12}}><p style={{fontSize:12,color:"#92400E"}}><strong>Referred by:</strong> {s.referredByName} <span style={{fontFamily:"monospace",fontSize:11}}>#{s.referredBy}</span></p></div>}
+              {s.referralCount>0&&<div style={{background:"#FAF5FF",border:"1px solid #E9D5FF",borderRadius:10,padding:"10px 14px",marginBottom:12}}><p style={{fontSize:12,color:"#9333EA"}}><strong>Loyalty:</strong> Referred {s.referralCount} client(s)</p></div>}
+              <div style={{position:"relative",paddingLeft:22}}>
+                <div style={{position:"absolute",left:7,top:0,bottom:0,width:2,background:"#E8E5DF",borderRadius:2}}></div>
+                {(s.sessions||[]).map(function(session,i){
+                  var isCur=i===(s.currentSession||0);
+                  var stc=SC[session.stage]||SC["New Inquiry"];
+                  return (
+                    <div key={i} style={{position:"relative",marginBottom:16}}>
+                      <div style={{position:"absolute",left:-18,top:4,width:10,height:10,borderRadius:"50%",background:isCur?stc.accent:"#D6D3D1",border:"2px solid white"}}></div>
+                      <div style={{background:isCur?"white":"#FAFAF7",border:"1px solid "+(isCur?stc.accent+"50":"#E8E5DF"),borderRadius:12,padding:"12px 14px"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <span style={{fontWeight:600,fontSize:13}}>Session {session.sessionNum||i+1}</span>
+                            {isCur&&<span style={{background:stc.accent,color:"white",borderRadius:20,padding:"2px 8px",fontSize:10,fontWeight:600}}>Current</span>}
+                          </div>
+                          <span style={{fontSize:11,color:"#A8A29E"}}>{session.date}</span>
+                        </div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:8}}>
+                          {session.plan&&<p style={{fontSize:12,color:"#57534E"}}><strong>Plan:</strong> {session.plan}</p>}
+                          {session.service&&<p style={{fontSize:12,color:"#57534E"}}><strong>Service:</strong> {session.service}</p>}
+                          {session.sesMode&&<p style={{fontSize:12,color:"#57534E"}}><strong>Mode:</strong> {session.sesMode}</p>}
+                          {session.prefSlot&&<p style={{fontSize:12,color:"#57534E"}}><strong>Slot:</strong> {session.prefSlot}</p>}
+                        </div>
+                        <span className="tag" style={{background:stc.bg,color:stc.accent,fontSize:10,marginBottom:8,display:"inline-block"}}>{session.stage}</span>
+                        {session.meetLink&&<p style={{fontSize:11,color:"#9333EA",marginBottom:6}}><a href={session.meetLink} target="_blank" rel="noopener noreferrer" style={{color:"#9333EA"}}>Meet Link</a></p>}
+                        <textarea value={session.sessionNotes||""} onChange={function(e){
+                          var val=e.target.value;var idx=i;
+                          setClients(function(prev){return prev.map(function(c){
+                            if(c.id!==s.id)return c;
+                            var sessions=c.sessions.slice();
+                            sessions[idx]=Object.assign({},sessions[idx],{sessionNotes:val});
+                            return Object.assign({},c,{sessions:sessions});
+                          });});
+                          setSel(function(p){
+                            if(!p||p.id!==s.id)return p;
+                            var sessions=p.sessions.slice();
+                            sessions[idx]=Object.assign({},sessions[idx],{sessionNotes:val});
+                            return Object.assign({},p,{sessions:sessions});
+                          });
+                        }} rows={2} placeholder="Add session notes..." style={{fontSize:12,lineHeight:1.5,marginTop:4}}/>
+                        {!isCur&&<button className="btn" onClick={function(){
+                          var idx=i;
+                          setClients(function(prev){return prev.map(function(c){return c.id===s.id?Object.assign({},c,{currentSession:idx}):c;});});
+                          setSel(function(p){return p&&p.id===s.id?Object.assign({},p,{currentSession:idx}):p;});
+                        }} style={{marginTop:8,background:"#F5F3EE",color:"#57534E",padding:"4px 10px",fontSize:11,border:"1px solid #E8E5DF"}}>Switch to Session {i+1}</button>}
+                      </div>
+                    </div>
+                  );
+                })}
+                <p style={{fontSize:11,color:"#A8A29E",textAlign:"center",paddingTop:4}}>{(s.sessions||[]).length} session(s) - {s.referralCount||0} referral(s)</p>
+              </div>
+            </div>
+          )}
+
+          {s&&tab==="templates"&&(
+            <div className="card" style={{padding:18}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
+                <h3 className="serif" style={{fontSize:18}}>Message Templates</h3>
+                <div style={{display:"flex",gap:6}}><button className={"chbtn"+(ch==="wa"?" active":"")} onClick={function(){setCh("wa");}}>WhatsApp</button><button className={"chbtn"+(ch==="em"?" active":"")} onClick={function(){setCh("em");}}>Email</button></div>
+              </div>
+              {[
+                {label:"Payment Request",type:"payment"},
+                {label:care?"Care Package Dispatched":"Session Confirmation",type:care?"care_dispatch":"session_confirm"},
+                {label:"Session Reminder",type:"session_reminder"},
+                {label:"Weekly Follow-up",type:"weekly_followup"},
+                {label:"Re-engagement",type:"reengagement"}
+              ].map(function(it){
+                var msg=buildMsg(s,it.type,ch);
+                return (
+                  <div key={it.label} style={{marginBottom:14}}>
+                    <p style={{fontSize:11,fontWeight:600,color:"#57534E",marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>{it.label}</p>
+                    <div style={{position:"relative"}}>
+                      <textarea value={msg} readOnly rows={4} style={{fontSize:12,lineHeight:1.6,background:"#FAFAF7",resize:"none",color:"#292524"}}/>
+                      <button className="btn" onClick={function(){cp(msg,it.label);}} style={{position:"absolute",top:6,right:6,background:"#1C1917",color:"white",padding:"3px 8px",fontSize:10}}>{copied===it.label?"Copied!":"Copy"}</button>
+                    </div>
+                    <div style={{display:"flex",gap:6,marginTop:5}}>
+                      {ch==="wa"&&s.phone&&<a href={"https://wa.me/"+s.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(msg)} target="_blank" rel="noopener noreferrer" style={{background:"#22C55E",color:"white",padding:"4px 10px",borderRadius:8,fontSize:11,fontWeight:500,textDecoration:"none"}}>Open WhatsApp</a>}
+                      {ch==="em"&&s.email&&<a href={"mailto:"+s.email} style={{background:"#3B82F6",color:"white",padding:"4px 10px",borderRadius:8,fontSize:11,fontWeight:500,textDecoration:"none"}}>Open Mail</a>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {s&&tab==="checklist"&&(
+            <div className="card" style={{padding:18}}>
+              <h3 className="serif" style={{fontSize:18,marginBottom:4}}>Checklist</h3>
+              <p style={{fontSize:12,color:"#A8A29E",marginBottom:12}}>{cStage(s)}</p>
+              {(CL[cStage(s)]||[]).map(function(item){
+                var key=s.id+"-"+item;var done=checked[key];
+                return (
+                  <div key={item} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid #F5F3EE"}}>
+                    <div onClick={function(){setChecked(function(p){var n=Object.assign({},p);n[key]=!p[key];return n;});}} style={{width:20,height:20,borderRadius:6,border:"2px solid "+(done?color.accent:"#D6D3D1"),background:done?color.accent:"white",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                      {done&&<span style={{color:"white",fontSize:10,fontWeight:700}}>v</span>}
+                    </div>
+                    <p style={{fontSize:13,textDecoration:done?"line-through":"none",color:done?"#A8A29E":"#292524"}}>{item}</p>
+                  </div>
+                );
+              })}
+              <div style={{marginTop:10,padding:"8px 12px",background:"#F5F3EE",borderRadius:10}}>
+                <p style={{fontSize:12,color:"#78716C"}}>{(CL[cStage(s)]||[]).filter(function(item){return checked[s.id+"-"+item];}).length} / {(CL[cStage(s)]||[]).length} done</p>
+              </div>
+            </div>
+          )}
+
+          {s&&tab==="ai-compose"&&(
+            <div className="card" style={{padding:18}}>
+              <h3 className="serif" style={{fontSize:18,marginBottom:4}}>AI Compose</h3>
+              <p style={{fontSize:12,color:"#A8A29E",marginBottom:10}}>Generate a message for {s.name.split(" ")[0]}</p>
+              <div style={{display:"flex",gap:6,marginBottom:10}}>
+                <button className={"chbtn"+(ch==="wa"?" active":"")} onClick={function(){setCh("wa");}}>WhatsApp</button>
+                <button className={"chbtn"+(ch==="em"?" active":"")} onClick={function(){setCh("em");}}>Email</button>
+                <button className={"chbtn"+(ch==="ig"?" active":"")} onClick={function(){setCh("ig");}}>Instagram</button>
+              </div>
+              <textarea placeholder="e.g. Follow up on diabetes meal plan" value={aiP} onChange={function(e){setAiP(e.target.value);}} rows={3} style={{marginBottom:10,lineHeight:1.6}}/>
+              <button className="aibtn" onClick={genAi} disabled={aiLoad||!aiP.trim()}>{aiLoad?<span className="pulse">Generating...</span>:"Generate Message"}</button>
+              {aiMsg&&<div className="fi" style={{marginTop:12,position:"relative"}}>
+                <div style={{background:"#FAF5FF",border:"1px solid #E9D5FF",borderRadius:10,padding:12}}>
+                  <pre style={{fontFamily:"DM Sans,sans-serif",fontSize:13,lineHeight:1.75,whiteSpace:"pre-wrap",color:"#292524"}}>{aiMsg}</pre>
+                </div>
+                <button className="btn" onClick={function(){cp(aiMsg,"ai");}} style={{position:"absolute",top:8,right:8,background:"#7C3AED",color:"white",padding:"4px 10px",fontSize:10}}>{copied==="ai"?"Copied!":"Copy"}</button>
+              </div>}
+            </div>
+          )}
+
+          {s&&tab==="profile"&&(
+            <div className="card" style={{padding:18}}>
+              <h3 className="serif" style={{fontSize:18,marginBottom:12}}>Full Client Profile</h3>
+              {[
+                ["Personal","#FAFAF7","#E8E5DF","#A8A29E",[["Code",s.cc],["Name",s.name],["Email",s.email],["Phone",s.phone],["DOB",s.dob],["Gender",s.gender],["City",s.city],["Source",s.source]]],
+                ["Booking","#FAFAF7","#E8E5DF","#A8A29E",[["Service",sess.service],["Type",sess.ct],["Plan",sess.plan],["Ref Code",sess.refCode],["Session",sess.sesMode],["Pref Date",sess.prefDate],["Weekend",sess.prefWE],["Weekday",sess.prefWD],["Meet Link",sess.meetLink],["Stage",cStage(s)]]],
+                ["Health","#FFF8F0","#FDE68A","#92400E",[["Goals",s.goal],["Conditions",s.conditions],["On Meds?",s.onMed],["Medications",s.meds],["Labs",sess.labs],["Prev Nutri?",s.prevNutri]]],
+                ["History","#F0FDF4","#BBF7D0","#166534",[["Worked Before?",s.workedBefore],["Last Program",s.lastProgram],["Progress",s.progress],["Notes",sess.extraNotes]]]
+              ].concat(hasCare(s)?[["Delivery","#EFF6FF","#BFDBFE","#1D4ED8",[["Calling Phone",sess.callingPhone],["Address Line 1",sess.deliveryLine1],["Address Line 2",sess.deliveryLine2],["City/State",sess.deliveryCity],["PIN",sess.deliveryPin],["Landmark",sess.deliveryLandmark],["Delivery Time",sess.deliveryTime],["Preferred?",sess.isPreferredAddress],["Confirmed",sess.finalConfirmation]]]]:[])
+              .map(function(sec){
+                var vis=sec[4].filter(function(f){return f[1];});
+                if(!vis.length)return null;
+                return (
+                  <div key={sec[0]} style={{marginBottom:14}}>
+                    <p style={{fontSize:10,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>{sec[0]}</p>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                      {vis.map(function(f){
+                        return <div key={f[0]} style={{background:sec[1],borderRadius:10,padding:"10px 12px",border:"1px solid "+sec[2]}}><p style={{fontSize:10,fontWeight:600,color:sec[3],textTransform:"uppercase",letterSpacing:".05em",marginBottom:3}}>{f[0]}</p><p style={{fontSize:13,color:"#1C1917",lineHeight:1.5,wordBreak:"break-word"}}>{String(f[1])}</p></div>;
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+        </div>
+      </div>
+
+      {showSend&&sendCtx&&(
+        <div className="overlay" onClick={function(){setShowSend(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <h2 className="serif" style={{fontSize:20}}>{sendCtx.isReminder?"Send Reminder":"Move to: "+sendCtx.next}</h2>
+              {calLoad&&<span style={{fontSize:12,color:"#9333EA"}}>Creating calendar event...</span>}
+            </div>
+            <p style={{fontSize:12,color:"#78716C",marginBottom:12}}>Review messages, send them, then click Confirm.</p>
+            <div style={{marginBottom:12}}>
+              <p style={{fontSize:11,fontWeight:600,color:"#57534E",marginBottom:5,textTransform:"uppercase"}}>WhatsApp</p>
+              <textarea value={sendWa} onChange={function(e){setSendWa(e.target.value);}} rows={5} style={{fontSize:12,lineHeight:1.6,marginBottom:6}}/>
+              {sendCtx.c.phone&&<a href={"https://wa.me/"+sendCtx.c.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(sendWa)} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",background:"#22C55E",color:"white",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Send WhatsApp</a>}
+            </div>
+            <div style={{marginBottom:14}}>
+              <p style={{fontSize:11,fontWeight:600,color:"#57534E",marginBottom:5,textTransform:"uppercase"}}>Email</p>
+              <textarea value={sendEm} onChange={function(e){setSendEm(e.target.value);}} rows={6} style={{fontSize:12,lineHeight:1.6,marginBottom:6}}/>
+              {sendCtx.c.email&&<a href={"mailto:"+sendCtx.c.email} style={{display:"inline-block",background:"#3B82F6",color:"white",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Send Email</a>}
+            </div>
+            <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:10,padding:"10px 14px",marginBottom:12}}>
+              <p style={{fontSize:12,color:"#166534"}}>Send messages first, then click Confirm to update stage and auto-schedule follow-ups.</p>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn" onClick={confirmMove} disabled={calLoad} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>{sendCtx.isReminder?"Done":"Confirm and Move Stage"}</button>
+              <button className="btn" onClick={function(){setShowSend(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSchedEdit&&schedEditItem&&(
+        <div className="overlay" onClick={function(){setShowSchedEdit(false);}}>
+          <div className="modal fi" style={{width:400}} onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:12}}>Reschedule Message</h2>
+            <p style={{fontSize:13,color:"#78716C",marginBottom:4}}>{schedEditItem.label} for {schedEditItem.clientName}</p>
+            <p style={{fontSize:12,color:"#A8A29E",marginBottom:14}}>Currently: {formatSchedTime(schedEditItem.scheduledFor)}</p>
+            <div className="field">
+              <label>New Date and Time</label>
+              <input type="datetime-local" value={schedEditTime} onChange={function(e){setSchedEditTime(e.target.value);}}/>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:14}}>
+              <button className="btn" onClick={function(){updateSchedTime(schedEditItem.id,schedEditItem.clientId,schedEditTime);}} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>Save Schedule</button>
+              <button className="btn" onClick={function(){setShowSchedEdit(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEdit&&editData&&(
+        <div className="overlay" onClick={function(){setShowEdit(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:14}}>Edit Client</h2>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div className="field"><label>Full Name</label><input value={editData.name||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{name:e.target.value});});}}/></div>
+              <div className="field"><label>WhatsApp</label><input value={editData.phone||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{phone:e.target.value});});}}/></div>
+              <div className="field"><label>Email</label><input value={editData.email||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{email:e.target.value});});}}/></div>
+              <div className="field"><label>City</label><input value={editData.city||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{city:e.target.value});});}}/></div>
+              <div className="field"><label>Health Goals</label><input value={editData.goal||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{goal:e.target.value});});}}/></div>
+              <div className="field"><label>Stage</label><select value={editData.stage||"New Inquiry"} onChange={function(e){setEditData(function(p){return Object.assign({},p,{stage:e.target.value});});}}>
+                {STAGES.map(function(x){return <option key={x}>{x}</option>;})}
+              </select></div>
+            </div>
+            <div className="field"><label>Medical Conditions</label><textarea value={editData.conditions||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{conditions:e.target.value});});}} rows={2}/></div>
+            <div className="field"><label>Medications</label><textarea value={editData.meds||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{meds:e.target.value});});}} rows={2}/></div>
+            <div style={{display:"flex",gap:8,marginTop:10}}>
+              <button className="btn" onClick={function(){if(editData&&editData.name){updClient(editData.id,editData);setShowEdit(false);}}} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>Save</button>
+              <button className="btn" onClick={function(){setShowEdit(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showImport&&(
+        <div className="overlay" onClick={function(){setShowImport(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:8}}>Import from Google Sheets</h2>
+            <p style={{fontSize:13,color:"#78716C",marginBottom:8}}>Run syncAllClients() in Apps Script, copy a CHUNK line, paste below.</p>
+            <div style={{background:"#FFF8F0",border:"1px solid #FDE68A",borderRadius:10,padding:"10px 14px",marginBottom:10}}><p style={{fontSize:12,color:"#92400E"}}>Copy only the JSON part after CHUNK_0: - starts with [ ends with ]</p></div>
+            <textarea placeholder="Paste JSON here..." value={importJson} onChange={function(e){setImportJson(e.target.value);}} rows={8} style={{fontSize:12,lineHeight:1.5,fontFamily:"monospace",marginBottom:10,background:"#FAFAF7"}}/>
+            {importErr&&<p style={{fontSize:12,color:"#E11D48",marginBottom:10,background:"#FFF1F2",padding:"8px 12px",borderRadius:8}}>{importErr}</p>}
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn" onClick={doImport} style={{background:"#16A34A",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>Import Now</button>
+              <button className="btn" onClick={function(){setShowImport(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAdd&&(
+        <div className="overlay" onClick={function(){setShowAdd(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:14}}>Add New Client</h2>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div className="field" style={{gridColumn:"1/-1"}}><label>Full Name *</label><input value={newC.name} onChange={function(e){setNewC(function(p){return Object.assign({},p,{name:e.target.value});})}}/></div>
+              <div className="field"><label>WhatsApp</label><input value={newC.phone} onChange={function(e){setNewC(function(p){return Object.assign({},p,{phone:e.target.value});})}}/></div>
+              <div className="field"><label>Email</label><input value={newC.email} onChange={function(e){setNewC(function(p){return Object.assign({},p,{email:e.target.value});})}}/></div>
+              <div className="field"><label>Health Goal</label><input value={newC.goal} onChange={function(e){setNewC(function(p){return Object.assign({},p,{goal:e.target.value});})}}/></div>
+              <div className="field"><label>Plan</label><input value={newC.plan} onChange={function(e){setNewC(function(p){return Object.assign({},p,{plan:e.target.value});})}}/></div>
+              <div className="field"><label>Preferred Date</label><input value={newC.prefDate} onChange={function(e){setNewC(function(p){return Object.assign({},p,{prefDate:e.target.value});})}}/></div>
+              <div className="field"><label>Session Mode</label><select value={newC.sesMode} onChange={function(e){setNewC(function(p){return Object.assign({},p,{sesMode:e.target.value});});}}>
+                <option>Online</option><option>In-person</option>
+              </select></div>
+              <div className="field"><label>Source</label><select value={newC.source} onChange={function(e){setNewC(function(p){return Object.assign({},p,{source:e.target.value});});}}>
+                {["Instagram","WhatsApp","Email","Referral","Google Form","Other"].map(function(x){return <option key={x}>{x}</option>;})}
+              </select></div>
+              <div className="field"><label>Stage</label><select value={newC.stage} onChange={function(e){setNewC(function(p){return Object.assign({},p,{stage:e.target.value});});}}>
+                {STAGES.map(function(x){return <option key={x}>{x}</option>;})}
+              </select></div>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:12}}>
+              <button className="btn" onClick={addCli} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>Add Client</button>
+              <button className="btn" onClick={function(){setShowAdd(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
 }
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
 </script>
