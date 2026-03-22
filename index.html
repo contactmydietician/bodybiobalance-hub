@@ -4,6 +4,8 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Body Bio Balance Consultancy</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
@@ -81,6 +83,16 @@ function hasCare(c) {
   for (var i = 0; i < CARE_KW.length; i++) { if (p.indexOf(CARE_KW[i]) >= 0) return true; }
   return false;
 }
+function hasCareWithPkg(c, pkgKeywords) {
+  if (!c) return false;
+  var sess = curSess(c);
+  var s = (sess.service || c.service || "").toLowerCase();
+  var p = (sess.plan || c.plan || "").toLowerCase();
+  if (s.indexOf("homemaker") >= 0) return true;
+  var kws = pkgKeywords || CARE_KW;
+  for (var i = 0; i < kws.length; i++) { if (p.indexOf(kws[i]) >= 0) return true; }
+  return false;
+}
 function isOffline(c) {
   var sess = curSess(c);
   var m = (sess.sesMode || c.sesMode || "").toLowerCase();
@@ -102,7 +114,7 @@ function buildMsg(c, type, ch) {
   var nm = c.name ? c.name.split(" ")[0] : "there";
   var sess = curSess(c);
   var plan = sess.plan || sess.service || "your selected plan";
-  var sl = sess.prefDate || sess.prefWE || sess.prefWD || "your preferred slot";
+  var sl = formatSlot(sess.prefDate || sess.prefWE || sess.prefWD) || "your preferred slot";
   var ml = sess.meetLink || "[MEET LINK]";
   var si = isOffline(c) ? "Mode: In-Person\nAddress: " + MAPS_LINK : "Mode: Online (Google Meet)\nMeet Link: " + ml;
   var da = "";
@@ -171,21 +183,21 @@ var COL = {
   name:"Name", email:"Email Address", phone:"Phone Number (preferably WhatsApp)",
   dob:"Date of Birth", gender:"Gender", city:"City /Location",
   workedBefore:"Have you worked with me before?",
-  lastProgram:"RET_Which program did we last work on together?",
-  progress:"RET_How has your progress been since we last worked together? ",
-  refCode:"RET_Please enter your referral/ client code",
-  serviceRet:"RET_Which service would you like to book?",
-  prevNutri:"NEW_Have you worked with a nutritionist or dietitian before? ",
-  source:"NEW_How did you hear about me?",
-  serviceNew:"NEW_Which service would you like to book?",
-  planCN:"NEW_Choose your 1:1 Nutrition Consultation plan",
-  planHN:"NEW_Choose your Habit Building Program plan",
-  planFN:"NEW_Choose your Metabolic Reset plan",
-  planMN:"NEW_Choose your Homemaker s Family plan",
-  planCR:"RET_Choose your 1:1 Nutrition Consultation plan",
-  planHR:"RET_Choose your Habit Building plan",
-  planFR:"RET_Choose your Metabolic Reset plan",
-  planMR:"RET_Choose your Homemaker s Family plan",
+  lastProgram:"** Which program did we last work on together?",
+  progress:"** How has your progress been since we last worked together? ",
+  refCode:"** Please enter your referral/ client code",
+  serviceRet:"** Which service would you like to book?",
+  prevNutri:"* Have you worked with a nutritionist or dietitian before? ",
+  source:"* How did you hear about me?",
+  serviceNew:"* Which service would you like to book?",
+  planCN:"* Choose your 1:1 Nutrition Consultation plan",
+  planHN:"* Choose your Habit Building Program plan",
+  planFN:"* Choose your Metabolic Reset plan",
+  planMN:"* Choose your Homemaker's Family plan",
+  planCR:"** Choose your 1:1 Nutrition Consultation plan",
+  planHR:"** Choose your Habit Building plan",
+  planFR:"** Choose your Metabolic Reset plan",
+  planMR:"** Choose your Homemaker's Family plan",
   goal:"What are your primary health goals or concerns?",
   conditions:"Do you have any existing health conditions? (Select all that apply)",
   onMed:"Are you currently on any medication?",
@@ -226,21 +238,45 @@ function getPlan(row) {
 function parseDate(ts) {
   if (!ts) return "";
   try {
-    var d = typeof ts === "number" ? new Date((ts - 25569) * 86400 * 1000) : new Date(ts);
-    if (isNaN(d.getTime())) return "";
-    return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"2-digit"});
-  } catch(e) { return ""; }
+    var d;
+    if (typeof ts === "number") {
+      // Google Sheets serial date - convert to IST
+      d = new Date((ts - 25569) * 86400 * 1000);
+    } else {
+      // String date - parse and adjust for IST (UTC+5:30)
+      d = new Date(ts);
+      if (isNaN(d.getTime())) return String(ts);
+    }
+    if (isNaN(d.getTime())) return String(ts);
+    // Format in IST
+    return d.toLocaleDateString("en-IN",{month:"short",day:"numeric",year:"2-digit",timeZone:"Asia/Kolkata"});
+  } catch(e) { return String(ts)||""; }
+}
+
+function formatSlot(val) {
+  // Show slot exactly as client entered - no date conversion
+  if (!val) return "";
+  return String(val).trim();
 }
 
 function genCode(clients, date) {
   var d; try { d = date ? new Date(date) : new Date(); if (isNaN(d.getTime())) d = new Date(); } catch(e) { d = new Date(); }
   var yy = String(d.getFullYear()).slice(-2);
   var mm = String(d.getMonth()+1).padStart(2,"0");
-  var ex = clients.filter(function(c){ return c.cc && c.cc.startsWith(yy) && c.cc.slice(3,5)===mm; });
-  var serial = ex.length+1;
-  var batch = Math.floor((serial-1)/100);
-  var rem = batch===0 ? serial : (serial-1)%100;
-  return yy+batch+mm+String(rem).padStart(2,"0");
+  var existing = clients.filter(function(c){ return c.cc && c.cc.startsWith(yy) && c.cc.slice(3,5)===mm; });
+  var allCodes = clients.map(function(c){ return c.cc; }).filter(Boolean);
+  var serial = existing.length + 1;
+  var code = "";
+  var attempts = 0;
+  while (attempts < 200) {
+    var batch = Math.floor((serial-1)/100);
+    var rem = batch===0 ? serial : (serial-1)%100;
+    code = yy+batch+mm+String(rem).padStart(2,"0");
+    if (allCodes.indexOf(code) === -1) break;
+    serial++;
+    attempts++;
+  }
+  return code;
 }
 
 function makeSession(row, num) {
@@ -250,8 +286,8 @@ function makeSession(row, num) {
   return {
     sessionNum:num||1, date:ds, plan:p.plan, service:p.service, ct:p.ct,
     stage:"New Inquiry", sesMode:row[COL.sesMode]||"",
-    prefWE:row[COL.prefWE]||"", prefWD:row[COL.prefWD]||"", prefDate:row[COL.prefDate]||"",
-    prefSlot:row[COL.prefDate]||row[COL.prefWE]||row[COL.prefWD]||"",
+    prefWE:formatSlot(row[COL.prefWE]), prefWD:formatSlot(row[COL.prefWD]), prefDate:formatSlot(row[COL.prefDate]),
+    prefSlot:formatSlot(row[COL.prefDate]||row[COL.prefWE]||row[COL.prefWD]),
     extraNotes:row[COL.extraNotes]||"", labs:row[COL.labs]||"", meetLink:"",
     refCode:row[COL.refCode]||"", sessionNotes:"",
     deliveryLine1:row[COL.deliveryLine1]||"", deliveryLine2:row[COL.deliveryLine2]||"",
@@ -335,10 +371,20 @@ function scheduleMessages(client, newStage) {
   var rules = {
     "Awaiting Payment":[{type:"payment_reminder",label:"Payment Reminder",days:1}],
     "Care Package Dispatched":[{type:"care_followup",label:"Care Package Follow-up",days:3}],
-    "Session Confirmed":[{type:"session_reminder",label:"Session Reminder",days:0,morning:true}],
+    "Session Confirmed":[{type:"session_reminder",label:"Session Reminder",days:0,morning:true},{type:"diet_chart",label:"Diet Chart Due (72hrs)",days:3,morning:true}],
     "Active Client":[{type:"weekly_followup",label:"Weekly Check-in",days:7}],
     "Follow-up":[{type:"reengagement",label:"Re-engagement",days:30}]
   };
+  if(client.programEndDate){
+    var endDate=new Date(client.programEndDate);
+    var daysToEnd=Math.ceil((endDate-now)/86400000);
+    if(daysToEnd>0&&daysToEnd<=7){
+      var endDateStr=endDate.toLocaleDateString("en-US",{month:"long",day:"numeric"});
+      var endWa="Hi "+client.name.split(" ")[0]+"! Your current program ends on "+endDateStr+". Would you like to discuss continuing? Warm regards, Taniya";
+      var endEm="Subject: Program Ending Soon\n\nHi "+client.name.split(" ")[0]+",\n\nYour program ends on "+endDateStr+". Please reach out to discuss next steps!\n\nWarm regards,\nTaniya";
+      existing.push({id:Date.now()+Math.random(),type:"program_end",label:"Program Ending Soon",clientId:client.id,clientName:client.name,scheduledFor:endDate.toISOString(),sent:false,waMsg:endWa,emMsg:endEm,phone:client.phone,email:client.email});
+    }
+  }
   var r = rules[newStage];
   if (!r) return client.scheduledMessages || [];
   var existing = (client.scheduledMessages || []).filter(function(m){ return !m.sent; });
@@ -366,6 +412,42 @@ function scheduleMessages(client, newStage) {
     });
   });
   return existing;
+}
+
+function getUpcomingBirthdays(clients) {
+  var today = new Date();
+  today.setHours(0,0,0,0);
+  return clients.filter(function(c) {
+    if (!c.dob) return false;
+    try {
+      var d = new Date(c.dob);
+      if (isNaN(d.getTime())) return false;
+      var thisYear = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+      if (thisYear < today) thisYear.setFullYear(today.getFullYear()+1);
+      var diff = Math.ceil((thisYear - today) / 86400000);
+      return diff > 0 && diff <= 7;
+    } catch(e) { return false; }
+  }).map(function(c) {
+    var d = new Date(c.dob);
+    var thisYear = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+    if (thisYear < today) thisYear.setFullYear(today.getFullYear()+1);
+    var daysLeft = Math.ceil((thisYear - today) / 86400000);
+    return Object.assign({}, c, {daysUntilBirthday:daysLeft, birthdayDate:thisYear.toLocaleDateString("en-US",{month:"long",day:"numeric"})});
+  }).sort(function(a,b){return a.daysUntilBirthday - b.daysUntilBirthday;});
+}
+
+function getTodaysBirthdays(clients) {
+  var today = new Date();
+  var todayMonth = today.getMonth()+1;
+  var todayDay = today.getDate();
+  return clients.filter(function(c) {
+    if (!c.dob) return false;
+    try {
+      var d = new Date(c.dob);
+      if (isNaN(d.getTime())) return false;
+      return d.getMonth()+1 === todayMonth && d.getDate() === todayDay;
+    } catch(e) { return false; }
+  });
 }
 
 function getAllScheduled(clients) {
@@ -408,7 +490,7 @@ async function createCalEvent(c) {
     var token = localStorage.getItem("gapi_token");
     if (!token) return null;
     var sess = curSess(c);
-    var sl = sess.prefDate || sess.prefWE || sess.prefWD || "";
+    var sl = formatSlot(sess.prefDate || sess.prefWE || sess.prefWD || "");
     var start = sl ? new Date(sl) : new Date();
     if (isNaN(start.getTime())) start = new Date();
     var end = new Date(start.getTime()+3600000);
@@ -427,6 +509,169 @@ async function createCalEvent(c) {
     var ep = data.conferenceData && data.conferenceData.entryPoints && data.conferenceData.entryPoints.find(function(e){return e.entryPointType==="video";});
     return ep ? ep.uri : null;
   } catch(e) { return null; }
+}
+
+var G_DEVELOPER_KEY = "";
+var G_APP_ID = "999570977587";
+
+function openDrivePicker(token, callback, mimeType) {
+  if (typeof gapi === "undefined") { alert("Google API not loaded. Check internet connection."); return; }
+  gapi.load("picker", function() {
+    var view = new google.picker.DocsView();
+    if (mimeType) view.setMimeTypes(mimeType);
+    view.setIncludeFolders(true);
+    view.setSelectFolderEnabled(true);
+    var folderView = new google.picker.DocsView(google.picker.ViewId.FOLDERS);
+    folderView.setSelectFolderEnabled(true);
+    var picker = new google.picker.PickerBuilder()
+      .setAppId(G_APP_ID)
+      .setOAuthToken(token)
+      .addView(view)
+      .addView(folderView)
+      .setCallback(function(data) {
+        if (data.action === google.picker.Action.PICKED) {
+          callback(data.docs);
+        }
+      })
+      .build();
+    picker.setVisible(true);
+  });
+}
+
+function openFolderPicker(token, callback) {
+  if (typeof gapi === "undefined") { alert("Google API not loaded. Check internet connection."); return; }
+  gapi.load("picker", function() {
+    var folderView = new google.picker.DocsView(google.picker.ViewId.FOLDERS);
+    folderView.setSelectFolderEnabled(true);
+    var picker = new google.picker.PickerBuilder()
+      .setAppId(G_APP_ID)
+      .setOAuthToken(token)
+      .addView(folderView)
+      .setCallback(function(data) {
+        if (data.action === google.picker.Action.PICKED) {
+          callback(data.docs[0]);
+        }
+      })
+      .build();
+    picker.setVisible(true);
+  });
+}
+
+async function getDriveFiles(token, folderId) {
+  try {
+    var url = "https://www.googleapis.com/drive/v3/files?q='" + folderId + "'+in+parents+and+trashed=false&fields=files(id,name,mimeType,webViewLink,webContentLink)&orderBy=name";
+    var res = await fetch(url, {headers: {"Authorization": "Bearer " + token}});
+    var data = await res.json();
+    return data.files || [];
+  } catch(e) { return []; }
+}
+
+async function shareFileWithEmail(token, fileId, email, canDownload) {
+  try {
+    var role = canDownload ? "reader" : "reader";
+    var res = await fetch("https://www.googleapis.com/drive/v3/files/" + fileId + "/permissions", {
+      method: "POST",
+      headers: {"Authorization": "Bearer " + token, "Content-Type": "application/json"},
+      body: JSON.stringify({role: role, type: "user", emailAddress: email})
+    });
+    var data = await res.json();
+    if (data.error) return null;
+    // Get file link
+    var fileRes = await fetch("https://www.googleapis.com/drive/v3/files/" + fileId + "?fields=webViewLink,webContentLink", {
+      headers: {"Authorization": "Bearer " + token}
+    });
+    var fileData = await fileRes.json();
+    return canDownload ? (fileData.webContentLink || fileData.webViewLink) : fileData.webViewLink;
+  } catch(e) { return null; }
+}
+
+var G_CLIENT_ID = "999570977587-ag3da1l3lqcsnvfn61t33ugv9o4a57bk.apps.googleusercontent.com";
+var G_SHEET_ID = "17PP0gYDaLlFgRoCKR2wBwo9s0ZSZ_xdMmbJzyVpJd2w";
+var G_SCOPES = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/drive.file";
+
+function gGetToken(){try{return localStorage.getItem("bbb_gt");}catch(e){return null;}}
+function gSetToken(t){try{localStorage.setItem("bbb_gt",t);}catch(e){}}
+function gClearToken(){try{localStorage.removeItem("bbb_gt");}catch(e){}}
+
+function gSignIn(cb){
+  if(typeof google==="undefined"){alert("Google services not available. Please check your internet connection.");return;}
+  var client=google.accounts.oauth2.initTokenClient({
+    client_id:G_CLIENT_ID,
+    scope:G_SCOPES,
+    callback:function(resp){
+      if(resp.access_token){gSetToken(resp.access_token);if(cb)cb(resp.access_token);}
+    }
+  });
+  client.requestAccessToken();
+}
+
+async function gSendEmail(token,to,subject,body){
+  try{
+    var raw=["To: "+to,"Subject: "+subject,"Content-Type: text/plain; charset=utf-8","",body].join("\n");
+    var enc=btoa(unescape(encodeURIComponent(raw))).replace(/[+]/g,"-").replace(/[/]/g,"_").replace(/[=]+$/,"");
+    var res=await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send",{
+      method:"POST",
+      headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
+      body:JSON.stringify({raw:enc})
+    });
+    var data=await res.json();
+    return !data.error;
+  }catch(e){return false;}
+}
+
+async function gSyncSheets(token){
+  try{
+    var url="https://sheets.googleapis.com/v4/spreadsheets/"+G_SHEET_ID+"/values/Form%20Responses%201";
+    var res=await fetch(url,{headers:{"Authorization":"Bearer "+token}});
+    var data=await res.json();
+    if(!data.values||data.values.length<2)return [];
+    var headers=data.values[0];
+    return data.values.slice(1).map(function(row){
+      var obj={};
+      headers.forEach(function(h,i){obj[h]=row[i]||"";});
+      return obj;
+    });
+  }catch(e){return [];}
+}
+
+async function gCreateCalEvent(token,c){
+  try{
+    if(!token)return null;
+    var sess=curSess(c);
+    var sl=sess.prefDate||sess.prefWE||sess.prefWD||"";
+    var start=sl?new Date(sl):new Date();
+    if(isNaN(start.getTime()))start=new Date();
+    var end=new Date(start.getTime()+3600000);
+    var ev={
+      summary:"Session: "+c.name+" - "+(sess.service||sess.plan||"Consultation"),
+      description:"Client: "+c.name+"\nPhone: "+c.phone+"\nEmail: "+c.email+"\nPlan: "+sess.plan+"\nGoals: "+c.goal,
+      start:{dateTime:start.toISOString(),timeZone:"Asia/Kolkata"},
+      end:{dateTime:end.toISOString(),timeZone:"Asia/Kolkata"},
+      attendees:c.email?[{email:c.email}]:[]
+    };
+    if(!isOffline(c))ev.conferenceData={createRequest:{requestId:"bbb-"+c.id,conferenceSolutionKey:{type:"hangoutsMeet"}}};
+    var url="https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all";
+    var res=await fetch(url,{method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify(ev)});
+    var data=await res.json();
+    if(data.error)return null;
+    var ep=data.conferenceData&&data.conferenceData.entryPoints&&data.conferenceData.entryPoints.find(function(e){return e.entryPointType==="video";});
+    return ep?ep.uri:null;
+  }catch(e){return null;}
+}
+
+async function gCheckCalAvailability(token,date){
+  try{
+    if(!token||!date)return null;
+    var d=new Date(date);
+    if(isNaN(d.getTime()))return null;
+    var start=new Date(d);start.setHours(0,0,0,0);
+    var end=new Date(d);end.setHours(23,59,59,999);
+    var url="https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin="+start.toISOString()+"&timeMax="+end.toISOString()+"&singleEvents=true";
+    var res=await fetch(url,{headers:{"Authorization":"Bearer "+token}});
+    var data=await res.json();
+    if(data.error)return null;
+    return data.items||[];
+  }catch(e){return null;}
 }
 
 function App() {
@@ -457,12 +702,73 @@ function App() {
   var r25=useState(false);var showSchedEdit=r25[0];var setShowSchedEdit=r25[1];
   var r26=useState(null);var schedEditItem=r26[0];var setSchedEditItem=r26[1];
   var r27=useState("");var schedEditTime=r27[0];var setSchedEditTime=r27[1];
+  var r28=useState({});var bdayMsgs=r28[0];var setBdayMsgs=r28[1];
+  var r29=useState("");var pinInput=r29[0];var setPinInput=r29[1];
+  var r30=useState(false);var pinVerified=r30[0];var setPinVerified=r30[1];
+  var r31=useState(false);var showSetPin=r31[0];var setShowSetPin=r31[1];
+  var r32=useState("");var newPin=r32[0];var setNewPin=r32[1];
+  var r33=useState(false);var showPayTracker=r33[0];var setShowPayTracker=r33[1];
+  var r34=useState(null);var payClient=r34[0];var setPayClient=r34[1];
+  var r35=useState({amount:"",method:"UPI",date:"",notes:"",isPartial:false,refund:false});var payForm=r35[0];var setPayForm=r35[1];
+  var r36=useState(false);var showForgotPin=r36[0];var setShowForgotPin=r36[1];
+  var r37=useState(1);var recoveryStep=r37[0];var setRecoveryStep=r37[1];
+  var r38=useState("");var recoveryA1=r38[0];var setRecoveryA1=r38[1];
+  var r39=useState("");var recoveryA2=r39[0];var setRecoveryA2=r39[1];
+  var r40=useState("");var secQ1=r40[0];var setSecQ1=r40[1];
+  var r41=useState("");var secA1=r41[0];var setSecA1=r41[1];
+  var r42=useState("");var secQ2=r42[0];var setSecQ2=r42[1];
+  var r43=useState("");var secA2=r43[0];var setSecA2=r43[1];
+  var r44=useState(gGetToken());var gToken=r44[0];var setGToken=r44[1];
+  var r45=useState(false);var gSyncing=r45[0];var setGSyncing=r45[1];
+  var r46=useState("");var emailStatus=r46[0];var setEmailStatus=r46[1];
+  var r47=useState(null);var calAvail=r47[0];var setCalAvail=r47[1];
+  var r48=useState(false);var showCalConfirm=r48[0];var setShowCalConfirm=r48[1];
+  var r49=useState(null);var calConfirmCtx=r49[0];var setCalConfirmCtx=r49[1];
+  var r50=useState("");var altDate=r50[0];var setAltDate=r50[1];
+  var r51=useState(false);var showRevTest=r51[0];var setShowRevTest=r51[1];
+  var r52=useState(null);var revTestClient=r52[0];var setRevTestClient=r52[1];
+  var r53=useState("");var revTestMsg=r53[0];var setRevTestMsg=r53[1];
+  var r54=useState("review");var rewardType=r54[0];var setRewardType=r54[1];
+  var r55=useState(false);var showReward=r55[0];var setShowReward=r55[1];
+  var r56=useState(function(){try{var t=localStorage.getItem("bbb_templates");return t?JSON.parse(t):{};} catch(e){return {};}});var savedTemplates=r56[0];var setSavedTemplates=r56[1];
+  var r57=useState(function(){try{var s=localStorage.getItem("bbb_stages");return s?JSON.parse(s):[];} catch(e){return [];}});var customStages=r57[0];var setCustomStages=r57[1];
+  var r58=useState(false);var showManageStages=r58[0];var setShowManageStages=r58[1];
+  var r59=useState({name:"",color:"#7C3AED"});var newStage=r59[0];var setNewStage=r59[1];
+  var r60=useState(false);var showPackages=r60[0];var setShowPackages=r60[1];
+  var r61=useState(function(){try{var p=localStorage.getItem("bbb_packages");return p?JSON.parse(p):{keywords:["monthly support","half yearly","care package","30 days","60 days","homemaker"],packages:[]};} catch(e){return {keywords:["monthly support","half yearly","care package","30 days","60 days","homemaker"],packages:[]};}}); var pkgData=r61[0];var setPkgData=r61[1];
+  var r62=useState("");var newKeyword=r62[0];var setNewKeyword=r62[1];
+  var r63=useState("");var newPkgName=r63[0];var setNewPkgName=r63[1];
+  var r64=useState(function(){try{var f=localStorage.getItem("bbb_drive_folder");return f?JSON.parse(f):null;}catch(e){return null;}});var driveFolder=r64[0];var setDriveFolder=r64[1];
+  var r65=useState(function(){try{var f=localStorage.getItem("bbb_rewards_folder");return f?JSON.parse(f):null;}catch(e){return null;}});var rewardsFolder=r65[0];var setRewardsFolder=r65[1];
+  var r66=useState([]);var driveFiles=r66[0];var setDriveFiles=r66[1];
+  var r67=useState(false);var showSendResource=r67[0];var setShowSendResource=r67[1];
+  var r68=useState(null);var resourceClient=r68[0];var setResourceClient=r68[1];
+  var r69=useState([]);var selectedFiles=r69[0];var setSelectedFiles=r69[1];
+  var r70=useState("view");var shareMode=r70[0];var setShareMode=r70[1];
+  var r71=useState(false);var loadingFiles=r71[0];var setLoadingFiles=r71[1];
+  var r72=useState(false);var showBulk=r72[0];var setShowBulk=r72[1];
+  var r73=useState("all");var bulkGroup=r73[0];var setBulkGroup=r73[1];
+  var r74=useState("");var bulkMsg=r74[0];var setBulkMsg=r74[1];
+  var r75=useState("wa");var bulkCh=r75[0];var setBulkCh=r75[1];
+  var r76=useState(null);var bulkFile=r76[0];var setBulkFile=r76[1];
+  var r77=useState(false);var bulkSending=r77[0];var setBulkSending=r77[1];
+  var r78=useState("");var bulkProgress=r78[0];var setBulkProgress=r78[1];
+  var r79=useState([]);var bulkDriveFiles=r79[0];var setBulkDriveFiles=r79[1];
+  var r80=useState(false);var showBulkDrive=r80[0];var setShowBulkDrive=r80[1];
 
   useEffect(function(){
+    var savedPin=localStorage.getItem("bbb_pin");
+    if(!savedPin){setShowSetPin(true);setPinVerified(true);}
+    else{setPinVerified(false);}
     try{var d=localStorage.getItem("bbb_c");if(d)setClients(JSON.parse(d));}catch(e){}
     try{var d2=localStorage.getItem("bbb_ch");if(d2)setChecked(JSON.parse(d2));}catch(e){}
   },[]);
   useEffect(function(){try{localStorage.setItem("bbb_c",JSON.stringify(clients));}catch(e){};},[clients]);
+  useEffect(function(){try{localStorage.setItem("bbb_templates",JSON.stringify(savedTemplates));}catch(e){};},[savedTemplates]);
+  useEffect(function(){try{localStorage.setItem("bbb_stages",JSON.stringify(customStages));}catch(e){};},[customStages]);
+  useEffect(function(){try{localStorage.setItem("bbb_packages",JSON.stringify(pkgData));}catch(e){};},[pkgData]);
+  useEffect(function(){try{if(driveFolder)localStorage.setItem("bbb_drive_folder",JSON.stringify(driveFolder));}catch(e){};},[driveFolder]);
+  useEffect(function(){try{if(rewardsFolder)localStorage.setItem("bbb_rewards_folder",JSON.stringify(rewardsFolder));}catch(e){};},[rewardsFolder]);
   useEffect(function(){try{localStorage.setItem("bbb_ch",JSON.stringify(checked));}catch(e){};},[checked]);
   useEffect(function(){
     window.__receiveSheetData=function(rows){
@@ -551,9 +857,9 @@ function App() {
   async function confirmMove() {
     if (!sendCtx) return;
     var c=sendCtx.c; var next=sendCtx.next;
-    if (!sendCtx.isReminder && (next==="Payment Received"||next==="Session Confirmed") && !isOffline(c)) {
+    if (!sendCtx.isReminder && (next==="Payment Received"||next==="Session Confirmed") && !isOffline(c) && gToken) {
       setCalLoad(true);
-      var ml = await createCalEvent(c);
+      var ml = await gCreateCalEvent(gToken,c);
       setCalLoad(false);
       if (ml) {
         updClient(c.id,{meetLink:ml});
@@ -625,6 +931,205 @@ function App() {
     setNewC({name:"",stage:"New Inquiry",source:"Instagram",goal:"",phone:"",email:"",conditions:"",meds:"",sesMode:"Online",plan:"",prefDate:""});
   }
 
+  function verifyPin(pin){
+    var saved=localStorage.getItem("bbb_pin");
+    if(pin===saved){setPinVerified(true);showToast("Welcome back!");}
+    else{showToast("Incorrect PIN. Try again.");setPinInput("");}
+  }
+  function savePin(pin){
+    if(pin.length<4){showToast("PIN must be at least 4 digits");return;}
+    localStorage.setItem("bbb_pin",pin);
+    setShowSetPin(false);setPinVerified(true);
+    showToast("PIN set successfully!");
+  }
+  function addPayment(clientId,payment){
+    setClients(function(prev){return prev.map(function(c){
+      if(c.id!==clientId)return c;
+      var payments=(c.payments||[]).concat([Object.assign({},payment,{id:Date.now(),date:payment.date||new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"2-digit"})})]);
+      return Object.assign({},c,{payments:payments});
+    });});
+    setSel(function(p){
+      if(!p||p.id!==clientId)return p;
+      var payments=(p.payments||[]).concat([Object.assign({},payment,{id:Date.now(),date:payment.date||new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"2-digit"})})]);
+      return Object.assign({},p,{payments:payments});
+    });
+    showToast("Payment recorded!");
+    setShowPayTracker(false);
+  }
+  function getTotalPaid(c){
+    if(!c||!c.payments)return 0;
+    return c.payments.reduce(function(sum,p){return p.refund?sum-Number(p.amount||0):sum+Number(p.amount||0);},0);
+  }
+  function connectGoogle(){
+    gSignIn(function(token){
+      setGToken(token);
+      showToast("Google account connected!");
+    });
+  }
+
+  function disconnectGoogle(){
+    gClearToken();
+    setGToken(null);
+    showToast("Disconnected from Google");
+  }
+
+  async function syncSheets(){
+    if(!gToken){showToast("Please connect Google first!");return;}
+    setGSyncing(true);
+    showToast("Syncing from Google Sheets...");
+    var rows=await gSyncSheets(gToken);
+    setGSyncing(false);
+    if(!rows.length){showToast("No data found or session expired. Please reconnect Google.");return;}
+    var parsed=rows.map(parseRow);
+    setClients(function(prev){
+      var merged=detectAndMerge(parsed,prev);
+      var newCount=merged.length-prev.length;
+      showToast(newCount>0?newCount+" new client(s) synced!":"All clients up to date!");
+      return merged;
+    });
+  }
+
+  async function sendEmailDirect(to,subject,body){
+    if(!gToken){showToast("Connect Google to send emails directly!");return false;}
+    setEmailStatus("Sending...");
+    var ok=await gSendEmail(gToken,to,subject,body);
+    setEmailStatus(ok?"Sent!":"Failed. Try reconnecting Google.");
+    setTimeout(function(){setEmailStatus("");},3000);
+    return ok;
+  }
+
+  async function checkAndCreateCalEvent(c,nextStage){
+    if(!gToken){
+      updClient(c.id,{stage:nextStage});
+      showToast("Moved to "+nextStage+". Connect Google for auto Calendar events.");
+      return;
+    }
+    var sess=curSess(c);
+    var prefDate=sess.prefDate||sess.prefWE||sess.prefWD||"";
+    if(!prefDate){
+      updClient(c.id,{stage:nextStage});
+      showToast("Moved to "+nextStage+". No preferred date found.");
+      return;
+    }
+    var events=await gCheckCalAvailability(gToken,prefDate);
+    setCalConfirmCtx({c:c,nextStage:nextStage,prefDate:prefDate,events:events||[]});
+    setShowCalConfirm(true);
+  }
+
+  function getTemplate(type, defaultMsg) {
+    return savedTemplates[type] || defaultMsg;
+  }
+  function saveTemplate(type, msg) {
+    setSavedTemplates(function(prev) {
+      return Object.assign({}, prev, {[type]: msg});
+    });
+  }
+  function addCustomStage(name, color) {
+    if (!name.trim()) return;
+    var stage = {name: name.trim(), color: color || "#7C3AED", custom: true};
+    setCustomStages(function(prev) { return prev.concat([stage]); });
+    showToast("Stage added: " + name);
+  }
+  function removeCustomStage(name) {
+    setCustomStages(function(prev) { return prev.filter(function(s) { return s.name !== name; }); });
+    showToast("Stage removed");
+  }
+  function selectDriveFolder(isRewards) {
+    if (!gToken) { showToast("Please connect Google first!"); return; }
+    openFolderPicker(gToken, function(folder) {
+      if (isRewards) {
+        setRewardsFolder({id: folder.id, name: folder.name});
+        showToast("Rewards folder set: " + folder.name);
+      } else {
+        setDriveFolder({id: folder.id, name: folder.name});
+        showToast("Drive folder set: " + folder.name);
+      }
+    });
+  }
+
+  async function loadDriveFiles(folderId) {
+    if (!gToken || !folderId) return;
+    setLoadingFiles(true);
+    var files = await getDriveFiles(gToken, folderId);
+    setDriveFiles(files);
+    setLoadingFiles(false);
+  }
+
+  async function sendResourceToClient(client, files, mode) {
+    if (!gToken || !client || !files.length) return;
+    var canDownload = mode === "download";
+    var links = [];
+    for (var i = 0; i < files.length; i++) {
+      var link = await shareFileWithEmail(gToken, files[i].id, client.email, canDownload);
+      if (link) links.push({name: files[i].name, link: link});
+    }
+    if (!links.length) { showToast("Could not share files. Check Drive permissions."); return; }
+    var nm2=client.name.split(" ")[0]; var fl2=links.map(function(l,i){return (i+1)+". "+l.name+"\n"+l.link;}).join("\n\n"); var dl2=canDownload?"\n\nYou can download these files.":"\n\nYou can view these anytime."; var msg="Hi "+nm2+"! Here are your resources:\n\n"+fl2+dl2+"\n\nWarm regards,\nTaniya";
+    if (client.phone) window.open("https://wa.me/" + client.phone.replace(/[^0-9]/g, "") + "?text=" + encodeURIComponent(msg), "_blank");
+    showToast(links.length + " file(s) shared successfully!");
+    setShowSendResource(false);
+    setSelectedFiles([]);
+  }
+
+  function getBulkRecipients(group) {
+    if (group === "active") return clients.filter(function(c){ return cStage(c) === "Active Client"; });
+    if (group === "followup") return clients.filter(function(c){ return cStage(c) === "Follow-up"; });
+    if (group === "awaiting") return clients.filter(function(c){ return cStage(c) === "Awaiting Payment"; });
+    return clients;
+  }
+
+  async function sendBulkMessages() {
+    if (!bulkMsg.trim()) { showToast("Please write a message first"); return; }
+    var recipients = getBulkRecipients(bulkGroup);
+    if (!recipients.length) { showToast("No clients in this group"); return; }
+    setBulkSending(true);
+
+    var finalMsg = bulkMsg;
+    if (bulkFile) finalMsg += "\n\n" + bulkFile.name + ": " + bulkFile.link;
+
+    if (bulkCh === "em") {
+      // Send all emails via Gmail API
+      if (!gToken) { showToast("Connect Google to send emails directly!"); setBulkSending(false); return; }
+      var sent = 0;
+      for (var i = 0; i < recipients.length; i++) {
+        var r = recipients[i];
+        if (!r.email) continue;
+        setBulkProgress("Sending " + (i+1) + " of " + recipients.length + "...");
+        var subj = "A message from Body Bio Balance Consultancy";
+        var ok = await gSendEmail(gToken, r.email, subj, finalMsg);
+        if (ok) sent++;
+        await new Promise(function(res){ setTimeout(res, 500); });
+      }
+      setBulkSending(false);
+      setBulkProgress("");
+      showToast(sent + " emails sent successfully!");
+    } else {
+      // WhatsApp - open one by one
+      var withPhone = recipients.filter(function(r){ return r.phone; });
+      if (!withPhone.length) { showToast("No clients with phone numbers"); setBulkSending(false); return; }
+      setBulkSending(false);
+      setBulkProgress("");
+      setShowBulk(false);
+      // Open first WhatsApp
+      var idx = 0;
+      function openNext() {
+        if (idx >= withPhone.length) { showToast("All " + withPhone.length + " WhatsApp messages ready!"); return; }
+        var c = withPhone[idx];
+        window.open("https://wa.me/" + c.phone.replace(/[^0-9]/g,"") + "?text=" + encodeURIComponent(finalMsg), "_blank");
+        idx++;
+        setTimeout(openNext, 1500);
+      }
+      openNext();
+    }
+  }
+
+  async function loadBulkDriveFiles() {
+    if (!gToken || !driveFolder) { showToast("Connect Google and set Drive folder first"); return; }
+    var files = await getDriveFiles(gToken, driveFolder.id);
+    setBulkDriveFiles(files);
+    setShowBulkDrive(true);
+  }
+
   async function genAi(){
     if(!sel||!aiP.trim())return;
     setAiLoad(true);setAiMsg("");
@@ -645,11 +1150,105 @@ function App() {
   }
 
   var s = sel;
-  var color = s ? (SC[cStage(s)]||SC["New Inquiry"]) : SC["New Inquiry"];
+  var allSC = Object.assign({}, SC);
+  customStages.forEach(function(cs){ allSC[cs.name] = {bg:cs.color+"22", accent:cs.color, dot:cs.color}; });
+  var color = s ? (allSC[cStage(s)]||SC["New Inquiry"]) : SC["New Inquiry"];
   var care = s ? hasCare(s) : false;
   var offline = s ? isOffline(s) : false;
   var sess = s ? curSess(s) : {};
 
+  if(!pinVerified){
+    return(
+      <div style={{fontFamily:"DM Sans,sans-serif",background:"#1C1917",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+        <div style={{background:"white",borderRadius:20,padding:40,width:360,maxWidth:"100%",textAlign:"center"}}>
+          <h1 className="serif" style={{fontSize:24,fontWeight:600,color:"#1C1917",marginBottom:4}}>Body Bio Balance</h1>
+          <p style={{fontSize:13,color:"#78716C",marginBottom:24}}>Enter your PIN to continue</p>
+          {!showForgotPin&&(
+            <div>
+              <input type="password" placeholder="Enter PIN" value={pinInput} onChange={function(e){setPinInput(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter")verifyPin(pinInput);}} style={{textAlign:"center",fontSize:20,letterSpacing:8,marginBottom:16}}/>
+              <button className="btn" onClick={function(){verifyPin(pinInput);}} style={{background:"#1C1917",color:"white",padding:"12px 24px",width:"100%",fontSize:14,fontWeight:600,marginBottom:12}}>Unlock</button>
+              <button onClick={function(){setShowForgotPin(true);setRecoveryStep(1);setRecoveryA1("");setRecoveryA2("");}} style={{background:"none",border:"none",color:"#78716C",fontSize:12,cursor:"pointer",textDecoration:"underline"}}>Forgot PIN?</button>
+            </div>
+          )}
+          {showForgotPin&&recoveryStep===1&&(
+            <div>
+              <p style={{fontSize:13,fontWeight:500,color:"#1C1917",marginBottom:12}}>{localStorage.getItem("bbb_sq1")}</p>
+              <input placeholder="Your answer..." value={recoveryA1} onChange={function(e){setRecoveryA1(e.target.value);}} style={{marginBottom:12}}/>
+              <button className="btn" onClick={function(){
+                if(recoveryA1.toLowerCase().trim()===localStorage.getItem("bbb_sa1")){setRecoveryStep(2);}
+                else{showToast("Incorrect answer. Try again.");}
+              }} style={{background:"#1C1917",color:"white",padding:"10px 20px",width:"100%",fontWeight:600,marginBottom:8}}>Next</button>
+              <button onClick={function(){setShowForgotPin(false);}} style={{background:"none",border:"none",color:"#78716C",fontSize:12,cursor:"pointer",textDecoration:"underline"}}>Back to PIN</button>
+            </div>
+          )}
+          {showForgotPin&&recoveryStep===2&&(
+            <div>
+              <p style={{fontSize:13,fontWeight:500,color:"#1C1917",marginBottom:12}}>{localStorage.getItem("bbb_sq2")}</p>
+              <input placeholder="Your answer..." value={recoveryA2} onChange={function(e){setRecoveryA2(e.target.value);}} style={{marginBottom:12}}/>
+              <button className="btn" onClick={function(){
+                if(recoveryA2.toLowerCase().trim()===localStorage.getItem("bbb_sa2")){setRecoveryStep(3);}
+                else{showToast("Incorrect answer. Try again.");}
+              }} style={{background:"#1C1917",color:"white",padding:"10px 20px",width:"100%",fontWeight:600,marginBottom:8}}>Next</button>
+            </div>
+          )}
+          {showForgotPin&&recoveryStep===3&&(
+            <div>
+              <p style={{fontSize:13,color:"#16A34A",marginBottom:12,fontWeight:500}}>Both answers correct! Set your new PIN.</p>
+              <input type="password" placeholder="New PIN" value={newPin} onChange={function(e){setNewPin(e.target.value);}} style={{textAlign:"center",fontSize:20,letterSpacing:8,marginBottom:12}}/>
+              <button className="btn" onClick={function(){
+                if(newPin.length<4){showToast("PIN must be at least 4 digits");return;}
+                localStorage.setItem("bbb_pin",newPin);
+                setPinVerified(true);setShowForgotPin(false);
+                showToast("PIN reset successfully!");
+              }} style={{background:"#16A34A",color:"white",padding:"10px 20px",width:"100%",fontWeight:600}}>Reset PIN</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+  if(showSetPin){
+    var SQS=["What was the name of your first place of work?","Who is your favourite person you have worked with?","What is the name of your favourite recipe you have ever formulated?","What was the name of the first restaurant you ever visited?"];
+    return(
+      <div style={{fontFamily:"DM Sans,sans-serif",background:"#1C1917",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+        <div style={{background:"white",borderRadius:20,padding:32,width:480,maxWidth:"100%"}}>
+          <h1 className="serif" style={{fontSize:22,fontWeight:600,color:"#1C1917",marginBottom:4,textAlign:"center"}}>Welcome!</h1>
+          <p style={{fontSize:13,color:"#78716C",marginBottom:20,textAlign:"center"}}>Set a PIN and security questions to protect your hub</p>
+          <div className="field">
+            <label>Create PIN (minimum 4 digits)</label>
+            <input type="password" placeholder="Create PIN" value={newPin} onChange={function(e){setNewPin(e.target.value);}} style={{textAlign:"center",fontSize:20,letterSpacing:8}}/>
+          </div>
+          <div className="field">
+            <label>Security Question 1</label>
+            <select value={secQ1} onChange={function(e){setSecQ1(e.target.value);}}>
+              <option value="">Select a question</option>
+              {SQS.map(function(q){return <option key={q}>{q}</option>;})}
+            </select>
+          </div>
+          {secQ1&&<div className="field"><label>Your Answer</label><input placeholder="Your answer..." value={secA1} onChange={function(e){setSecA1(e.target.value);}}/></div>}
+          <div className="field">
+            <label>Security Question 2</label>
+            <select value={secQ2} onChange={function(e){setSecQ2(e.target.value);}}>
+              <option value="">Select a different question</option>
+              {SQS.filter(function(q){return q!==secQ1;}).map(function(q){return <option key={q}>{q}</option>;})}
+            </select>
+          </div>
+          {secQ2&&<div className="field"><label>Your Answer</label><input placeholder="Your answer..." value={secA2} onChange={function(e){setSecA2(e.target.value);}}/></div>}
+          <button className="btn" onClick={function(){
+            if(newPin.length<4){showToast("PIN must be at least 4 digits");return;}
+            if(!secQ1||!secA1||!secQ2||!secA2){showToast("Please answer both security questions");return;}
+            localStorage.setItem("bbb_pin",newPin);
+            localStorage.setItem("bbb_sq1",secQ1);
+            localStorage.setItem("bbb_sa1",secA1.toLowerCase().trim());
+            localStorage.setItem("bbb_sq2",secQ2);
+            localStorage.setItem("bbb_sa2",secA2.toLowerCase().trim());
+            setShowSetPin(false);setPinVerified(true);
+            showToast("PIN and security questions saved!");
+          }} style={{background:"#1C1917",color:"white",padding:"12px 24px",width:"100%",fontSize:14,fontWeight:600,marginTop:8}}>Set PIN and Enter</button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{fontFamily:"DM Sans,sans-serif",background:"#F7F6F2",minHeight:"100vh"}}>
 
@@ -661,12 +1260,24 @@ function App() {
         <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
           {toast&&<span style={{background:"#166534",color:"#BBF7D0",padding:"4px 10px",borderRadius:8,fontSize:11}}>{toast}</span>}
           {dueCount>0&&<span style={{background:"#D97706",color:"white",padding:"4px 10px",borderRadius:8,fontSize:11,fontWeight:600}}>{dueCount} message{dueCount>1?"s":""} due</span>}
+          {getTodaysBirthdays(clients).length>0&&<span style={{background:"#E11D48",color:"white",padding:"4px 10px",borderRadius:8,fontSize:11,fontWeight:600}}>Birthday x{getTodaysBirthdays(clients).length}</span>}
+          {getUpcomingBirthdays(clients).length>0&&<span style={{background:"#9333EA",color:"white",padding:"4px 10px",borderRadius:8,fontSize:11,fontWeight:600}}>Upcoming x{getUpcomingBirthdays(clients).length}</span>}
           <div style={{background:"#292524",borderRadius:8,padding:"5px 10px",fontSize:11}}><span style={{color:"#A8A29E"}}>Awaiting: </span><span style={{color:"#FDE68A",fontWeight:600}}>{cnt("Awaiting Payment")}</span></div>
           <div style={{background:"#292524",borderRadius:8,padding:"5px 10px",fontSize:11}}><span style={{color:"#A8A29E"}}>Payment: </span><span style={{color:"#FDE68A",fontWeight:600}}>{cnt("Payment Received")}</span></div>
           <div style={{background:"#292524",borderRadius:8,padding:"5px 10px",fontSize:11}}><span style={{color:"#A8A29E"}}>Active: </span><span style={{color:"#FDE68A",fontWeight:600}}>{cnt("Active Client")}</span></div>
           <div style={{background:"#292524",borderRadius:8,padding:"5px 10px",fontSize:11}}><span style={{color:"#A8A29E"}}>Total: </span><span style={{color:"#FDE68A",fontWeight:600}}>{clients.length}</span></div>
-          <button className="btn" onClick={function(){setShowImport(true);setImportErr("");setImportJson("");}} style={{background:"#16A34A",color:"white",padding:"7px 12px",fontWeight:600}}>Import</button>
+          {gToken
+            ?<button className="btn" onClick={syncSheets} disabled={gSyncing} style={{background:"#16A34A",color:"white",padding:"7px 12px",fontWeight:600}}>{gSyncing?"Syncing...":"Sync Sheets"}</button>
+            :<button className="btn" onClick={connectGoogle} style={{background:"#4285F4",color:"white",padding:"7px 12px",fontWeight:600}}>Connect Google</button>
+          }
+          {gToken&&<span style={{background:"#166534",color:"#BBF7D0",padding:"4px 8px",borderRadius:6,fontSize:10,cursor:"pointer"}} onClick={disconnectGoogle}>Google Connected</span>}
+          {gToken&&<button className="btn" onClick={function(){selectDriveFolder(false);}} style={{background:"#0891B2",color:"white",padding:"7px 10px",fontSize:11}}>{driveFolder?"Drive: "+driveFolder.name.slice(0,12)+"...":"Set Drive Folder"}</button>}
+          {gToken&&<button className="btn" onClick={function(){selectDriveFolder(true);}} style={{background:"#7C3AED",color:"white",padding:"7px 10px",fontSize:11}}>{rewardsFolder?"Rewards: "+rewardsFolder.name.slice(0,10)+"...":"Set Rewards Folder"}</button>}
+          <button className="btn" onClick={function(){setShowImport(true);setImportErr("");setImportJson("");}} style={{background:"#059669",color:"white",padding:"7px 12px",fontWeight:600}}>Manual Import</button>
           <button className="btn" onClick={function(){setShowAdd(true);}} style={{background:"#F59E0B",color:"#1C1917",padding:"7px 12px",fontWeight:600}}>+ Add</button>
+          <button className="btn" onClick={function(){setShowManageStages(true);}} style={{background:"#7C3AED",color:"white",padding:"7px 12px",fontWeight:600}}>Stages</button>
+          <button className="btn" onClick={function(){setShowPackages(true);}} style={{background:"#0891B2",color:"white",padding:"7px 12px",fontWeight:600}}>Packages</button>
+          <button className="btn" onClick={function(){setShowBulk(true);setBulkMsg("");setBulkFile(null);setBulkGroup("all");setBulkCh("wa");}} style={{background:"#E11D48",color:"white",padding:"7px 12px",fontWeight:600}}>Bulk Message</button>
         </div>
       </div>
 
@@ -708,6 +1319,7 @@ function App() {
                     {c.referralCount>0&&<span style={{color:"#9333EA"}}>Ref:{c.referralCount}</span>}
                     {c.referredBy&&<span style={{color:"#D97706"}}>by:{c.referredByName&&c.referredByName.split(" ")[0]}</span>}
                     {hasCare(c)&&<span style={{color:"#3B82F6"}}>Care</span>}
+                    {(function(){var total=getTotalPaid(c);var hasPartial=c.payments&&c.payments.some(function(p){return p.isPartial&&!p.refund;});var hasUnpaid=hasPartial&&total>0;return hasUnpaid?<span style={{color:"#E11D48",fontWeight:600}}>Partial Paid</span>:null;})()}
                   </div>
                 </div>
               );
@@ -721,7 +1333,50 @@ function App() {
             <div className="card" style={{padding:18}}>
               <h3 className="serif" style={{fontSize:18,marginBottom:4}}>Today s Messages</h3>
               <p style={{fontSize:12,color:"#A8A29E",marginBottom:16}}>All scheduled messages due today or overdue</p>
-              {allScheduled.length===0&&<div style={{padding:32,textAlign:"center"}}><p style={{color:"#A8A29E",fontSize:13}}>No scheduled messages yet</p><p style={{color:"#D6D3D1",fontSize:11,marginTop:4}}>Messages are scheduled automatically when you move clients to new stages</p></div>}
+              {getTodaysBirthdays(clients).length>0&&<div style={{marginBottom:20}}>
+  <p style={{fontSize:13,fontWeight:600,color:"#E11D48",marginBottom:10}}>Birthdays Today!</p>
+  {getTodaysBirthdays(clients).map(function(c){
+    var defaultMsg="Hi "+c.name.split(" ")[0]+"! Wishing you a very Happy Birthday! May this year bring you great health, happiness and wellness. It has been a pleasure being part of your health journey.\n\nWarm regards,\nTaniya";
+    var msg=bdayMsgs[c.id]!==undefined?bdayMsgs[c.id]:defaultMsg;
+    return(
+      <div key={c.id} style={{background:"#FFF1F2",border:"1px solid #FECDD3",borderRadius:12,padding:"14px 16px",marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div>
+            <p style={{fontWeight:600,fontSize:14}}>{c.name}</p>
+            <p style={{fontSize:11,color:"#78716C",marginTop:2}}>Birthday today! DOB: {c.dob}</p>
+          </div>
+          {c.cc&&<span style={{fontFamily:"monospace",fontSize:11,color:"#A8A29E",background:"#F5F3EE",borderRadius:6,padding:"2px 8px"}}>#{c.cc}</span>}
+        </div>
+        <p style={{fontSize:11,fontWeight:600,color:"#57534E",marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Customise Message</p>
+        <textarea value={msg} onChange={function(e){var val=e.target.value;setBdayMsgs(function(p){var n=Object.assign({},p);n[c.id]=val;return n;});}} rows={5} style={{fontSize:12,lineHeight:1.6,marginBottom:8,background:"white"}}/>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {c.phone&&<a href={"https://wa.me/"+c.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(msg)} target="_blank" rel="noopener noreferrer" style={{background:"#22C55E",color:"white",padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Send WhatsApp</a>}
+          {c.email&&<a href={"mailto:"+c.email+"?subject=Happy Birthday "+c.name.split(" ")[0]+"!&body="+encodeURIComponent(msg)} style={{background:"#3B82F6",color:"white",padding:"6px 12px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Send Email</a>}
+        </div>
+      </div>
+    );
+  })}
+</div>}
+
+{getUpcomingBirthdays(clients).length>0&&<div style={{marginBottom:20}}>
+  <p style={{fontSize:13,fontWeight:600,color:"#9333EA",marginBottom:10}}>Upcoming Birthdays (Next 7 Days)</p>
+  {getUpcomingBirthdays(clients).map(function(c){
+    return(
+      <div key={c.id} style={{background:"#FAF5FF",border:"1px solid #E9D5FF",borderRadius:12,padding:"12px 16px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <p style={{fontWeight:600,fontSize:13}}>{c.name}</p>
+          <p style={{fontSize:11,color:"#78716C",marginTop:2}}>{c.birthdayDate}</p>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+          <span style={{background:"#9333EA",color:"white",borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:600}}>{c.daysUntilBirthday===1?"Tomorrow!":"In "+c.daysUntilBirthday+" days"}</span>
+          {c.cc&&<span style={{fontFamily:"monospace",fontSize:10,color:"#A8A29E"}}>#{c.cc}</span>}
+        </div>
+      </div>
+    );
+  })}
+</div>}
+
+{allScheduled.length===0&&<div style={{padding:32,textAlign:"center"}}><p style={{color:"#A8A29E",fontSize:13}}>No scheduled messages yet</p><p style={{color:"#D6D3D1",fontSize:11,marginTop:4}}>Messages are scheduled automatically when you move clients to new stages</p></div>}
               {allScheduled.map(function(m){
                 var status=getSchedStatus(m.scheduledFor);
                 return (
@@ -781,7 +1436,34 @@ function App() {
                       <button className="btn" onClick={function(){initiateMove(s,-1);}} disabled={STAGES.indexOf(cStage(s))===0} style={{background:"white",border:"1px solid #E8E5DF",padding:"5px 10px",fontSize:11,color:"#57534E"}}>Back</button>
                       <button className="btn" onClick={function(){initiateMove(s,1);}} disabled={STAGES.indexOf(cStage(s))===STAGES.length-1} style={{background:color.accent,color:"white",padding:"5px 10px",fontSize:11}}>Next Stage</button>
                       <button className="btn" onClick={function(){setEditData(Object.assign({},s));setShowEdit(true);}} style={{background:"#F59E0B",color:"#1C1917",padding:"5px 10px",fontSize:11,fontWeight:600}}>Edit</button>
-                      <button className="btn" onClick={function(){openSend(s,cStage(s),"session_reminder",true);}} style={{background:"#9333EA",color:"white",padding:"5px 10px",fontSize:11}}>Reminder</button>
+                      <button className="btn" onClick={function(){setPayClient(s);setPayForm({amount:"",method:"UPI",date:"",notes:"",isPartial:false,refund:false});setShowPayTracker(true);}} style={{background:"#16A34A",color:"white",padding:"5px 10px",fontSize:11}}>Payment</button>
+                      <button className="btn" onClick={function(){
+                        var msg="Hi "+s.name.split(" ")[0]+"! It was wonderful working with you. I would love to hear about your experience. Please share your feedback using this form: [FEEDBACK FORM LINK]. Your review means a lot! Warm regards, Taniya";
+                        if(s.phone)window.open("https://wa.me/"+s.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(msg),"_blank");
+                      }} style={{background:"#9333EA",color:"white",padding:"5px 10px",fontSize:11}}>Feedback</button>
+                      <button className="btn" onClick={function(){
+                      var st=cStage(s);var mt="session_reminder";
+                      if(st==="New Inquiry")mt="payment";
+                      else if(st==="Awaiting Payment")mt="payment_reminder";
+                      else if(st==="Care Package Dispatched")mt="care_followup";
+                      else if(st==="Session Confirmed")mt="session_reminder";
+                      else if(st==="Active Client")mt="weekly_followup";
+                      else if(st==="Follow-up")mt="reengagement";
+                      openSend(s,st,mt,true);
+                    }} style={{background:"#9333EA",color:"white",padding:"5px 10px",fontSize:11}}>Reminder</button>
+                      <button className="btn" onClick={function(){
+                        setResourceClient(s);
+                        setSelectedFiles([]);
+                        setShareMode("view");
+                        if(driveFolder){loadDriveFiles(driveFolder.id);}
+                        setShowSendResource(true);
+                      }} style={{background:"#0891B2",color:"white",padding:"5px 10px",fontSize:11}}>Send Resource</button>
+                      <button className="btn" onClick={function(){
+                        var defMsg="Hi "+s.name.split(" ")[0]+"! It has been wonderful being part of your health journey. I would love to hear your feedback! You can share it in two ways:\n\n1. Leave a Google Review here: [GOOGLE REVIEW LINK]\n2. Send a short video testimonial sharing your experience\n\nAs a thank you, I have a special reward waiting for you once I receive your review or testimonial!\n\nWarm regards,\nTaniya";
+                        setRevTestClient(s);
+                        setRevTestMsg(defMsg);
+                        setShowRevTest(true);
+                      }} style={{background:"#E11D48",color:"white",padding:"5px 10px",fontSize:11}}>Review and Testimonial</button>
                     </div>
                   </div>
                 </div>
@@ -789,7 +1471,7 @@ function App() {
               <div className="card" style={{padding:16}}>
                 <h3 className="serif" style={{fontSize:16,marginBottom:12}}>Journey Pipeline</h3>
                 <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8}}>
-                  {STAGES.filter(function(st){return st!=="Care Package Dispatched"||care;}).map(function(stage){
+                  {STAGES.concat(customStages.map(function(s){return s.name;})).filter(function(st){return st!=="Care Package Dispatched"||care;}).map(function(stage){
                     var isCur=cStage(s)===stage;
                     var isDone=STAGES.indexOf(cStage(s))>STAGES.indexOf(stage);
                     var stc=SC[stage]||SC["New Inquiry"];
@@ -949,7 +1631,8 @@ function App() {
                 ["Personal","#FAFAF7","#E8E5DF","#A8A29E",[["Code",s.cc],["Name",s.name],["Email",s.email],["Phone",s.phone],["DOB",s.dob],["Gender",s.gender],["City",s.city],["Source",s.source]]],
                 ["Booking","#FAFAF7","#E8E5DF","#A8A29E",[["Service",sess.service],["Type",sess.ct],["Plan",sess.plan],["Ref Code",sess.refCode],["Session",sess.sesMode],["Pref Date",sess.prefDate],["Weekend",sess.prefWE],["Weekday",sess.prefWD],["Meet Link",sess.meetLink],["Stage",cStage(s)]]],
                 ["Health","#FFF8F0","#FDE68A","#92400E",[["Goals",s.goal],["Conditions",s.conditions],["On Meds?",s.onMed],["Medications",s.meds],["Labs",sess.labs],["Prev Nutri?",s.prevNutri]]],
-                ["History","#F0FDF4","#BBF7D0","#166534",[["Worked Before?",s.workedBefore],["Last Program",s.lastProgram],["Progress",s.progress],["Notes",sess.extraNotes]]]
+                ["History","#F0FDF4","#BBF7D0","#166534",[["Worked Before?",s.workedBefore],["Last Program",s.lastProgram],["Progress",s.progress],["Notes",sess.extraNotes]]],
+        ["Allergies and Dietary","#FFF8F0","#FDE68A","#92400E",[["Food Allergies",s.foodAllergies],["Food Intolerances",s.foodIntolerances],["Supplements",s.supplements],["Dietary Restrictions",s.dietaryRestrictions]]]
               ].concat(hasCare(s)?[["Delivery","#EFF6FF","#BFDBFE","#1D4ED8",[["Calling Phone",sess.callingPhone],["Address Line 1",sess.deliveryLine1],["Address Line 2",sess.deliveryLine2],["City/State",sess.deliveryCity],["PIN",sess.deliveryPin],["Landmark",sess.deliveryLandmark],["Delivery Time",sess.deliveryTime],["Preferred?",sess.isPreferredAddress],["Confirmed",sess.finalConfirmation]]]]:[])
               .map(function(sec){
                 var vis=sec[4].filter(function(f){return f[1];});
@@ -987,13 +1670,29 @@ function App() {
             <div style={{marginBottom:14}}>
               <p style={{fontSize:11,fontWeight:600,color:"#57534E",marginBottom:5,textTransform:"uppercase"}}>Email</p>
               <textarea value={sendEm} onChange={function(e){setSendEm(e.target.value);}} rows={6} style={{fontSize:12,lineHeight:1.6,marginBottom:6}}/>
-              {sendCtx.c.email&&<a href={"mailto:"+sendCtx.c.email} style={{display:"inline-block",background:"#3B82F6",color:"white",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Send Email</a>}
+              {sendCtx.c.email&&(gToken
+              ?<button className="btn" onClick={function(){
+                  var lines=sendEm.split("\n");
+                  var subj=lines[0].replace("Subject: ","");
+                  var body=lines.slice(2).join("\n");
+                  sendEmailDirect(sendCtx.c.email,subj,body);
+                }} style={{background:"#3B82F6",color:"white",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:500}}>
+                  {emailStatus||"Send Email Directly"}
+                </button>
+              :<a href={"mailto:"+sendCtx.c.email} style={{display:"inline-block",background:"#3B82F6",color:"white",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Open in Mail</a>
+            )}
             </div>
             <div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:10,padding:"10px 14px",marginBottom:12}}>
               <p style={{fontSize:12,color:"#166534"}}>Send messages first, then click Confirm to update stage and auto-schedule follow-ups.</p>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <button className="btn" onClick={confirmMove} disabled={calLoad} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>{sendCtx.isReminder?"Done":"Confirm and Move Stage"}</button>
+              <div style={{display:"flex",gap:6,flex:1}}>
+                <button className="btn" onClick={function(){
+                  if(sendCtx&&sendCtx.msgType){saveTemplate(sendCtx.msgType+"_wa",sendWa);saveTemplate(sendCtx.msgType+"_em",sendEm);showToast("Template saved!");}
+                  confirmMove();
+                }} disabled={calLoad} style={{background:"#1C1917",color:"white",padding:"10px 14px",flex:1,fontWeight:600}}>Save and {sendCtx.isReminder?"Send":"Move Stage"}</button>
+                <button className="btn" onClick={confirmMove} disabled={calLoad} style={{background:"#57534E",color:"white",padding:"10px 14px",flex:1,fontWeight:600}}>Just {sendCtx.isReminder?"Send":"Move"}</button>
+              </div>
               <button className="btn" onClick={function(){setShowSend(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
             </div>
           </div>
@@ -1018,23 +1717,451 @@ function App() {
         </div>
       )}
 
+      {showCalConfirm&&calConfirmCtx&&(
+        <div className="overlay" onClick={function(){setShowCalConfirm(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:4}}>Confirm Appointment</h2>
+            <p style={{fontSize:13,color:"#78716C",marginBottom:16}}>{calConfirmCtx.c.name}</p>
+            {calConfirmCtx.events.length===0
+              ?<div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:10,padding:"12px 16px",marginBottom:16}}>
+                <p style={{fontSize:13,fontWeight:600,color:"#059669"}}>Preferred date is available!</p>
+                <p style={{fontSize:12,color:"#78716C",marginTop:4}}>Date: {calConfirmCtx.prefDate}</p>
+                <p style={{fontSize:12,color:"#78716C"}}>Slot: {curSess(calConfirmCtx.c).prefWE||curSess(calConfirmCtx.c).prefWD||"As preferred"}</p>
+              </div>
+              :<div style={{background:"#FFF1F2",border:"1px solid #FECDD3",borderRadius:10,padding:"12px 16px",marginBottom:16}}>
+                <p style={{fontSize:13,fontWeight:600,color:"#E11D48"}}>You have {calConfirmCtx.events.length} event(s) on this date!</p>
+                <p style={{fontSize:12,color:"#78716C",marginTop:4}}>Please select an alternative date:</p>
+                <div className="field" style={{marginTop:8}}>
+                  <label>Alternative Date</label>
+                  <input type="date" value={altDate} onChange={function(e){setAltDate(e.target.value);}}/>
+                </div>
+              </div>
+            }
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn" onClick={async function(){
+                var c=calConfirmCtx.c;
+                var next=calConfirmCtx.nextStage;
+                var useDate=calConfirmCtx.events.length===0?calConfirmCtx.prefDate:altDate;
+                if(calConfirmCtx.events.length>0&&!altDate){showToast("Please select an alternative date");return;}
+                var ml=null;
+                if(!isOffline(c)&&gToken){
+                  setCalLoad(true);
+                  ml=await gCreateCalEvent(gToken,Object.assign({},c,{sessions:c.sessions.map(function(s,i){return i===(c.currentSession||0)?Object.assign({},s,{prefDate:useDate}):s;})}));
+                  setCalLoad(false);
+                }
+                updClient(c.id,{stage:next,meetLink:ml||""});
+                var newScheds=scheduleMessages(c,next);
+                setClients(function(prev){return prev.map(function(cl){return cl.id!==c.id?cl:Object.assign({},cl,{scheduledMessages:newScheds});});});
+                setShowCalConfirm(false);
+                showToast(ml?"Moved to "+next+"! Meet link generated!":"Moved to "+next+"!");
+              }} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>
+                {calLoad?"Creating event...":"Yes, Create Calendar Event"}
+              </button>
+              <button className="btn" onClick={function(){setShowCalConfirm(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSendResource&&resourceClient&&(
+        <div className="overlay" onClick={function(){setShowSendResource(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:4}}>Send Resource</h2>
+            <p style={{fontSize:13,color:"#78716C",marginBottom:12}}>{resourceClient.name} - {resourceClient.email}</p>
+
+            {!driveFolder&&<div style={{background:"#FFF8F0",border:"1px solid #FDE68A",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+              <p style={{fontSize:13,color:"#92400E",marginBottom:8}}>No Drive folder selected yet.</p>
+              <button className="btn" onClick={function(){selectDriveFolder(false);}} style={{background:"#0891B2",color:"white",padding:"8px 14px",fontWeight:600}}>Select Drive Folder</button>
+            </div>}
+
+            {driveFolder&&<div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <p style={{fontSize:12,color:"#57534E"}}>Folder: <strong>{driveFolder.name}</strong></p>
+                <div style={{display:"flex",gap:6}}>
+                  <button className="btn" onClick={function(){loadDriveFiles(driveFolder.id);}} style={{background:"#F5F3EE",color:"#57534E",padding:"4px 10px",fontSize:11}}>{loadingFiles?"Loading...":"Refresh"}</button>
+                  <button className="btn" onClick={function(){selectDriveFolder(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"4px 10px",fontSize:11}}>Change</button>
+                </div>
+              </div>
+
+              <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",marginBottom:8}}>Select Files</p>
+              {loadingFiles&&<p style={{fontSize:12,color:"#A8A29E",marginBottom:10}}>Loading files...</p>}
+              {!loadingFiles&&driveFiles.length===0&&<p style={{fontSize:12,color:"#A8A29E",marginBottom:10}}>No files found. Click Refresh to load.</p>}
+              <div style={{maxHeight:200,overflowY:"auto",marginBottom:12}} className="scroll">
+                {driveFiles.map(function(file){
+                  var isSelected=selectedFiles.find(function(f){return f.id===file.id;});
+                  return(
+                    <div key={file.id} onClick={function(){
+                      setSelectedFiles(function(prev){
+                        if(prev.find(function(f){return f.id===file.id;}))return prev.filter(function(f){return f.id!==file.id;});
+                        return prev.concat([file]);
+                      });
+                    }} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:8,marginBottom:4,cursor:"pointer",background:isSelected?"#EFF6FF":"#FAFAF7",border:"1px solid "+(isSelected?"#3B82F6":"#E8E5DF")}}>
+                      <div style={{width:16,height:16,borderRadius:4,border:"2px solid "+(isSelected?"#3B82F6":"#D6D3D1"),background:isSelected?"#3B82F6":"white",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        {isSelected&&<span style={{color:"white",fontSize:10,fontWeight:700}}>v</span>}
+                      </div>
+                      <p style={{fontSize:12,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{file.name}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {selectedFiles.length>0&&<div style={{background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8,padding:"8px 12px",marginBottom:12}}>
+                <p style={{fontSize:12,color:"#166534"}}>{selectedFiles.length} file(s) selected</p>
+              </div>}
+
+              <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",marginBottom:8}}>Access Type</p>
+              <div style={{display:"flex",gap:8,marginBottom:14}}>
+                <button className={"chbtn"+(shareMode==="view"?" active":"")} onClick={function(){setShareMode("view");}}>View Only</button>
+                <button className={"chbtn"+(shareMode==="download"?" active":"")} onClick={function(){setShareMode("download");}}>Downloadable</button>
+              </div>
+
+              <div style={{display:"flex",gap:8}}>
+                <button className="btn" onClick={function(){sendResourceToClient(resourceClient,selectedFiles,shareMode);}} disabled={!selectedFiles.length||!resourceClient.email} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>
+                  {!resourceClient.email?"No email on file":"Send "+selectedFiles.length+" File(s)"}
+                </button>
+                <button className="btn" onClick={function(){setShowSendResource(false);setSelectedFiles([]);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
+              </div>
+            </div>}
+          </div>
+        </div>
+      )}
+
+      {showBulk&&(
+        <div className="overlay" onClick={function(){if(!bulkSending)setShowBulk(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:4}}>Bulk Message</h2>
+            <p style={{fontSize:13,color:"#78716C",marginBottom:16}}>Send a message to multiple clients at once</p>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+              <div className="field">
+                <label>Send To</label>
+                <select value={bulkGroup} onChange={function(e){setBulkGroup(e.target.value);}}>
+                  <option value="all">All Clients ({clients.length})</option>
+                  <option value="active">Active Clients ({getBulkRecipients("active").length})</option>
+                  <option value="followup">Follow-up Clients ({getBulkRecipients("followup").length})</option>
+                  <option value="awaiting">Awaiting Payment ({getBulkRecipients("awaiting").length})</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>Channel</label>
+                <div style={{display:"flex",gap:6,marginTop:4}}>
+                  <button className={"chbtn"+(bulkCh==="wa"?" active":"")} onClick={function(){setBulkCh("wa");}}>WhatsApp</button>
+                  <button className={"chbtn"+(bulkCh==="em"?" active":"")} onClick={function(){setBulkCh("em");}}>Email</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="field">
+              <label>Message (write fresh each time)</label>
+              <textarea value={bulkMsg} onChange={function(e){setBulkMsg(e.target.value);}} rows={7} placeholder="Write your message here..." style={{fontSize:12,lineHeight:1.6}}/>
+            </div>
+
+            <div style={{background:"#F5F3EE",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <p style={{fontSize:12,fontWeight:600,color:"#57534E"}}>Attach Drive File (optional)</p>
+                <div style={{display:"flex",gap:6}}>
+                  {bulkFile&&<button className="btn" onClick={function(){setBulkFile(null);}} style={{background:"#FFF1F2",color:"#E11D48",padding:"3px 8px",fontSize:11}}>Remove</button>}
+                  <button className="btn" onClick={loadBulkDriveFiles} style={{background:"#0891B2",color:"white",padding:"4px 10px",fontSize:11}}>Browse Drive</button>
+                </div>
+              </div>
+              {bulkFile
+                ?<div style={{background:"#EFF6FF",borderRadius:8,padding:"8px 10px"}}>
+                  <p style={{fontSize:12,color:"#1D4ED8",fontWeight:500}}>{bulkFile.name}</p>
+                  <p style={{fontSize:11,color:"#78716C",marginTop:2}}>Will be sent as a link in the message</p>
+                </div>
+                :<p style={{fontSize:12,color:"#A8A29E"}}>No file attached. Message will be text only.</p>
+              }
+            </div>
+
+            {showBulkDrive&&bulkDriveFiles.length>0&&(
+              <div style={{background:"white",border:"1px solid #E8E5DF",borderRadius:10,padding:"12px 14px",marginBottom:14,maxHeight:200,overflowY:"auto"}} className="scroll">
+                <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",marginBottom:8}}>Select a file to attach:</p>
+                {bulkDriveFiles.map(function(file){
+                  return(
+                    <div key={file.id} onClick={function(){
+                      setBulkFile({id:file.id,name:file.name,link:file.webViewLink||""});
+                      setShowBulkDrive(false);
+                    }} style={{padding:"8px 10px",borderRadius:8,marginBottom:4,cursor:"pointer",background:"#FAFAF7",border:"1px solid #E8E5DF"}}>
+                      <p style={{fontSize:12}}>{file.name}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {bulkCh==="em"&&!gToken&&<div style={{background:"#FFF1F2",border:"1px solid #FECDD3",borderRadius:8,padding:"10px 12px",marginBottom:12}}>
+              <p style={{fontSize:12,color:"#E11D48"}}>Connect Google to send emails automatically. Otherwise use WhatsApp.</p>
+            </div>}
+
+            {bulkCh==="wa"&&<div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:8,padding:"10px 12px",marginBottom:12}}>
+              <p style={{fontSize:12,color:"#92400E"}}>WhatsApp will open one by one for each client. Click Send on each window.</p>
+            </div>}
+
+            {bulkSending&&<div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:8,padding:"10px 12px",marginBottom:12}}>
+              <p style={{fontSize:12,color:"#1D4ED8",fontWeight:600}}>{bulkProgress||"Sending..."}</p>
+            </div>}
+
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <p style={{fontSize:12,color:"#57534E"}}>Recipients: <strong>{getBulkRecipients(bulkGroup).length} clients</strong></p>
+            </div>
+
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn" onClick={sendBulkMessages} disabled={bulkSending||!bulkMsg.trim()} style={{background:"#E11D48",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>
+                {bulkSending?bulkProgress:"Send to "+getBulkRecipients(bulkGroup).length+" Clients"}
+              </button>
+              <button className="btn" onClick={function(){if(!bulkSending)setShowBulk(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPackages&&(
+        <div className="overlay" onClick={function(){setShowPackages(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:4}}>Packages</h2>
+            <p style={{fontSize:13,color:"#78716C",marginBottom:16}}>Manage your programs and care package detection keywords</p>
+
+            <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",marginBottom:8}}>Care Package Keywords</p>
+            <p style={{fontSize:12,color:"#78716C",marginBottom:8}}>If a client plan contains any of these words, they are flagged as a care package client:</p>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+              {(pkgData.keywords||[]).map(function(kw){
+                return(
+                  <div key={kw} style={{display:"flex",alignItems:"center",gap:4,background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:20,padding:"4px 10px"}}>
+                    <span style={{fontSize:12,color:"#1D4ED8"}}>{kw}</span>
+                    <button onClick={function(){setPkgData(function(p){return Object.assign({},p,{keywords:p.keywords.filter(function(k){return k!==kw;})});});}} style={{background:"none",border:"none",color:"#E11D48",cursor:"pointer",fontSize:14,lineHeight:1}}>x</button>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{display:"flex",gap:8,marginBottom:20}}>
+              <input placeholder="Add new keyword..." value={newKeyword} onChange={function(e){setNewKeyword(e.target.value);}} style={{flex:1}}/>
+              <button className="btn" onClick={function(){
+                if(newKeyword.trim()){
+                  setPkgData(function(p){return Object.assign({},p,{keywords:p.keywords.concat([newKeyword.trim().toLowerCase()])});});
+                  setNewKeyword("");
+                }
+              }} style={{background:"#1D4ED8",color:"white",padding:"8px 14px",fontWeight:600}}>Add</button>
+            </div>
+
+            <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",marginBottom:8}}>Your Programs</p>
+            <p style={{fontSize:12,color:"#78716C",marginBottom:8}}>Add your program names for reference. These are auto-detected from the form.</p>
+            <div style={{marginBottom:10}}>
+              {(pkgData.packages||[]).map(function(pkg,i){
+                return(
+                  <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#FAFAF7",borderRadius:8,marginBottom:4,border:"1px solid #E8E5DF"}}>
+                    <p style={{fontSize:13}}>{pkg}</p>
+                    <button onClick={function(){setPkgData(function(p){return Object.assign({},p,{packages:p.packages.filter(function(pk){return pk!==pkg;})});});}} style={{background:"none",border:"none",color:"#E11D48",cursor:"pointer",fontSize:12}}>Remove</button>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{display:"flex",gap:8,marginBottom:14}}>
+              <input placeholder="Add program name..." value={newPkgName} onChange={function(e){setNewPkgName(e.target.value);}} style={{flex:1}}/>
+              <button className="btn" onClick={function(){
+                if(newPkgName.trim()){
+                  setPkgData(function(p){return Object.assign({},p,{packages:(p.packages||[]).concat([newPkgName.trim()])});});
+                  setNewPkgName("");
+                }
+              }} style={{background:"#1C1917",color:"white",padding:"8px 14px",fontWeight:600}}>Add</button>
+            </div>
+            <button className="btn" onClick={function(){setShowPackages(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px",width:"100%"}}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {showManageStages&&(
+        <div className="overlay" onClick={function(){setShowManageStages(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:4}}>Manage Stages</h2>
+            <p style={{fontSize:13,color:"#78716C",marginBottom:16}}>Add custom stages to your pipeline</p>
+
+            <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",marginBottom:8}}>Default Stages</p>
+            <div style={{marginBottom:16}}>
+              {STAGES.map(function(st){
+                var stc=SC[st]||SC["New Inquiry"];
+                return(
+                  <div key={st} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:stc.bg,borderRadius:8,marginBottom:4}}>
+                    <span style={{width:10,height:10,borderRadius:"50%",background:stc.accent,display:"inline-block",flexShrink:0}}></span>
+                    <p style={{fontSize:13,color:stc.accent,fontWeight:500,flex:1}}>{st}</p>
+                    <span style={{fontSize:10,color:"#A8A29E"}}>Default</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {customStages.length>0&&<div style={{marginBottom:16}}>
+              <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",marginBottom:8}}>Custom Stages</p>
+              {customStages.map(function(cs){
+                return(
+                  <div key={cs.name} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:cs.color+"22",borderRadius:8,marginBottom:4}}>
+                    <span style={{width:10,height:10,borderRadius:"50%",background:cs.color,display:"inline-block",flexShrink:0}}></span>
+                    <p style={{fontSize:13,color:cs.color,fontWeight:500,flex:1}}>{cs.name}</p>
+                    <button className="btn" onClick={function(){removeCustomStage(cs.name);}} style={{background:"#FFF1F2",color:"#E11D48",padding:"3px 8px",fontSize:11}}>Remove</button>
+                  </div>
+                );
+              })}
+            </div>}
+
+            <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",marginBottom:8}}>Add New Stage</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,marginBottom:10}}>
+              <div className="field" style={{margin:0}}><input placeholder="Stage name e.g. Consultation Done" value={newStage.name} onChange={function(e){setNewStage(function(p){return Object.assign({},p,{name:e.target.value});})}}/></div>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <label style={{fontSize:11,color:"#78716C"}}>Colour:</label>
+                <input type="color" value={newStage.color} onChange={function(e){setNewStage(function(p){return Object.assign({},p,{color:e.target.value});})}} style={{width:40,height:36,padding:2,border:"1px solid #E8E5DF",borderRadius:6,cursor:"pointer"}}/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn" onClick={function(){addCustomStage(newStage.name,newStage.color);setNewStage({name:"",color:"#7C3AED"});}} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>Add Stage</button>
+              <button className="btn" onClick={function(){setShowManageStages(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRevTest&&revTestClient&&(
+        <div className="overlay" onClick={function(){setShowRevTest(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:4}}>Review and Testimonial</h2>
+            <p style={{fontSize:13,color:"#78716C",marginBottom:16}}>{revTestClient.name}</p>
+
+            {!showReward&&<div>
+              <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",marginBottom:8}}>Request Message</p>
+              <textarea value={revTestMsg} onChange={function(e){setRevTestMsg(e.target.value);}} rows={8} style={{fontSize:12,lineHeight:1.6,marginBottom:10}}/>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+                {revTestClient.phone&&<a href={"https://wa.me/"+revTestClient.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(revTestMsg)} target="_blank" rel="noopener noreferrer" style={{background:"#22C55E",color:"white",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Send WhatsApp</a>}
+                {revTestClient.email&&<a href={"mailto:"+revTestClient.email+"?subject=Share Your Experience!&body="+encodeURIComponent(revTestMsg)} style={{background:"#3B82F6",color:"white",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Send Email</a>}
+              </div>
+              <div style={{background:"#F5F3EE",borderRadius:10,padding:"12px 14px"}}>
+                <p style={{fontSize:12,fontWeight:600,color:"#57534E",marginBottom:8}}>Received something? Send Reward:</p>
+                <div style={{display:"flex",gap:8,marginBottom:10}}>
+                  <button className={"chbtn"+(rewardType==="review"?" active":"")} onClick={function(){setRewardType("review");}}>Google Review (View Only)</button>
+                  <button className={"chbtn"+(rewardType==="testimonial"?" active":"")} onClick={function(){setRewardType("testimonial");}}>Video Testimonial (Downloadable)</button>
+                </div>
+                <button className="btn" onClick={function(){setShowReward(true);}} style={{background:"#1C1917",color:"white",padding:"8px 16px",fontSize:12,fontWeight:600}}>Select Reward File from Drive</button>
+              </div>
+            </div>}
+
+            {showReward&&<div>
+              <p style={{fontSize:13,fontWeight:600,color:"#1C1917",marginBottom:4}}>Sending reward for: {rewardType==="review"?"Google Review (View Only)":"Video Testimonial (Downloadable)"}</p>
+              <p style={{fontSize:12,color:"#78716C",marginBottom:12}}>Paste the Google Drive file link from your Rewards folder:</p>
+              <div className="field"><label>Drive File Link (from Rewards folder)</label><input placeholder="https://drive.google.com/file/..." id="rewardFileLink"/></div>
+              <div style={{background:"#FFF8F0",border:"1px solid #FDE68A",borderRadius:8,padding:"10px 12px",marginBottom:12}}>
+                <p style={{fontSize:12,color:"#92400E"}}>Go to Drive -> Body Bio Balance Consultancy -> Rewards -> right-click file -> Get Link -> paste here</p>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button className="btn" onClick={function(){
+                  var link=document.getElementById("rewardFileLink").value;
+                  if(!link){showToast("Please paste the file link");return;}
+                  var msg="Hi "+revTestClient.name.split(" ")[0]+"! Thank you so much for your "+( rewardType==="review"?"Google Review":"video testimonial")+"! Here is your special reward: "+link+(rewardType==="review"?"\n\nYou can view this resource anytime.":"\n\nYou can download this resource to keep forever.")+"\n\nWarm regards,\nTaniya";
+                  if(revTestClient.phone)window.open("https://wa.me/"+revTestClient.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(msg),"_blank");
+                  showToast("Reward message ready!");
+                  setShowReward(false);
+                  setShowRevTest(false);
+                }} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>Send Reward via WhatsApp</button>
+                <button className="btn" onClick={function(){setShowReward(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Back</button>
+              </div>
+            </div>}
+
+            {!showReward&&<button className="btn" onClick={function(){setShowRevTest(false);setShowReward(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px",marginTop:8,width:"100%"}}>Close</button>}
+          </div>
+        </div>
+      )}
+
+      {showPayTracker&&payClient&&(
+        <div className="overlay" onClick={function(){setShowPayTracker(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:4}}>Payment Tracker</h2>
+            <p style={{fontSize:13,color:"#78716C",marginBottom:16}}>{payClient.name}</p>
+            {(payClient.payments||[]).length>0&&(
+              <div style={{marginBottom:16}}>
+                <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",marginBottom:8}}>Payment History</p>
+                {(payClient.payments||[]).map(function(p){
+                  return(
+                    <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:p.refund?"#FFF1F2":"#F0FDF4",borderRadius:8,marginBottom:6,border:"1px solid "+(p.refund?"#FECDD3":"#BBF7D0")}}>
+                      <div>
+                        <p style={{fontSize:13,fontWeight:600,color:p.refund?"#E11D48":"#059669"}}>{p.refund?"-":"+"}Rs {p.amount} {p.isPartial?"(Partial)":""}</p>
+                        <p style={{fontSize:11,color:"#78716C"}}>{p.method} - {p.date}</p>
+                        {p.notes&&<p style={{fontSize:11,color:"#A8A29E"}}>{p.notes}</p>}
+                      </div>
+                      <span style={{fontSize:11,fontWeight:600,color:p.refund?"#E11D48":"#059669"}}>{p.refund?"Refund":"Paid"}</span>
+                    </div>
+                  );
+                })}
+                <div style={{background:"#1C1917",color:"#FDE68A",borderRadius:8,padding:"10px 14px",marginTop:8}}>
+                  <p style={{fontSize:13,fontWeight:600}}>Total: Rs {getTotalPaid(payClient)}</p>
+                </div>
+              </div>
+            )}
+            <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",marginBottom:8}}>Record New Payment</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div className="field"><label>Amount (Rs)</label><input type="number" placeholder="e.g. 2999" value={payForm.amount} onChange={function(e){setPayForm(function(p){return Object.assign({},p,{amount:e.target.value});})}}/></div>
+              <div className="field"><label>Method</label><select value={payForm.method} onChange={function(e){setPayForm(function(p){return Object.assign({},p,{method:e.target.value});})}}>
+                {["UPI","Google Pay","Paytm","Bank Transfer","Cash"].map(function(x){return <option key={x}>{x}</option>;})}
+              </select></div>
+              <div className="field"><label>Date</label><input type="date" value={payForm.date} onChange={function(e){setPayForm(function(p){return Object.assign({},p,{date:e.target.value});})}}/></div>
+              <div className="field"><label>Notes</label><input placeholder="e.g. Transaction ID" value={payForm.notes} onChange={function(e){setPayForm(function(p){return Object.assign({},p,{notes:e.target.value});})}}/></div>
+              <div className="field"><label style={{display:"flex",alignItems:"center",gap:6}}><input type="checkbox" checked={payForm.isPartial} onChange={function(e){setPayForm(function(p){return Object.assign({},p,{isPartial:e.target.checked});});}}/> Partial Payment</label></div>
+              <div className="field"><label style={{display:"flex",alignItems:"center",gap:6}}><input type="checkbox" checked={payForm.refund} onChange={function(e){setPayForm(function(p){return Object.assign({},p,{refund:e.target.checked});});}}/> This is a Refund</label></div>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:14}}>
+              <button className="btn" onClick={function(){if(payForm.amount)addPayment(payClient.id,payForm);}} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>Record Payment</button>
+              <button className="btn" onClick={function(){setShowPayTracker(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showEdit&&editData&&(
         <div className="overlay" onClick={function(){setShowEdit(false);}}>
           <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
             <h2 className="serif" style={{fontSize:20,marginBottom:14}}>Edit Client</h2>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              <div className="field"><label>Full Name</label><input value={editData.name||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{name:e.target.value});});}}/></div>
-              <div className="field"><label>WhatsApp</label><input value={editData.phone||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{phone:e.target.value});});}}/></div>
-              <div className="field"><label>Email</label><input value={editData.email||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{email:e.target.value});});}}/></div>
-              <div className="field"><label>City</label><input value={editData.city||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{city:e.target.value});});}}/></div>
-              <div className="field"><label>Health Goals</label><input value={editData.goal||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{goal:e.target.value});});}}/></div>
-              <div className="field"><label>Stage</label><select value={editData.stage||"New Inquiry"} onChange={function(e){setEditData(function(p){return Object.assign({},p,{stage:e.target.value});});}}>
-                {STAGES.map(function(x){return <option key={x}>{x}</option>;})}
+            <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Personal Details</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+              <div className="field"><label>Full Name</label><input value={editData.name||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{name:e.target.value});})}}/></div>
+              <div className="field"><label>WhatsApp</label><input value={editData.phone||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{phone:e.target.value});})}}/></div>
+              <div className="field"><label>Email</label><input value={editData.email||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{email:e.target.value});})}}/></div>
+              <div className="field"><label>Date of Birth</label><input placeholder="e.g. 1990-05-15" value={editData.dob||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{dob:e.target.value});})}}/></div>
+              <div className="field"><label>Gender</label><select value={editData.gender||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{gender:e.target.value});});}}><option value="">Select</option>{["Male","Female","Other"].map(function(x){return <option key={x}>{x}</option>;})}</select></div>
+              <div className="field"><label>City</label><input value={editData.city||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{city:e.target.value});})}}/></div>
+              <div className="field"><label>Source</label><select value={editData.source||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{source:e.target.value});});}}><option value="">Select</option>{["Instagram","WhatsApp","Email","Referral","Google Form","Other"].map(function(x){return <option key={x}>{x}</option>;})}</select></div>
+            </div>
+            <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Booking Details</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+              <div className="field"><label>Stage</label><select value={editData.stage||"New Inquiry"} onChange={function(e){setEditData(function(p){return Object.assign({},p,{stage:e.target.value});})}}>
+                {STAGES.concat(customStages.map(function(s){return s.name;})).map(function(x){return <option key={x}>{x}</option>;})}
+              </select></div>
+              <div className="field"><label>Session Mode</label><select value={editData.sesMode||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{sesMode:e.target.value});})}}>
+                <option value="">Select</option><option>Online</option><option>In-person</option>
+              </select></div>
+              <div className="field"><label>Selected Plan</label><input value={editData.plan||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{plan:e.target.value});})}}/></div>
+              <div className="field"><label>Referral Code</label><input value={editData.refCode||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{refCode:e.target.value});})}}/></div>
+              <div className="field"><label>Preferred Date</label><input value={editData.prefDate||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{prefDate:e.target.value});})}}/></div>
+              <div className="field"><label>Program End Date</label><input type="date" value={editData.programEndDate||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{programEndDate:e.target.value});})}}/></div>
+            </div>
+            <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Health and Dietary</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:4}}>
+              <div className="field" style={{gridColumn:"1/-1"}}><label>Health Goals</label><input value={editData.goal||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{goal:e.target.value});})}}/></div>
+              <div className="field" style={{gridColumn:"1/-1"}}><label>Medical Conditions</label><textarea value={editData.conditions||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{conditions:e.target.value});});}} rows={2}/></div>
+              <div className="field" style={{gridColumn:"1/-1"}}><label>Medications and Doses</label><textarea value={editData.meds||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{meds:e.target.value});});}} rows={2}/></div>
+              <div className="field" style={{gridColumn:"1/-1"}}><label>Food Allergies</label><input value={editData.foodAllergies||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{foodAllergies:e.target.value});})}}/></div>
+              <div className="field" style={{gridColumn:"1/-1"}}><label>Food Intolerances</label><input value={editData.foodIntolerances||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{foodIntolerances:e.target.value});})}}/></div>
+              <div className="field" style={{gridColumn:"1/-1"}}><label>Supplements Currently Taking</label><input value={editData.supplements||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{supplements:e.target.value});})}}/></div>
+              <div className="field"><label>Dietary Restrictions</label><select value={editData.dietaryRestrictions||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{dietaryRestrictions:e.target.value});})}}>
+                <option value="">Select</option>{["Vegetarian","Vegan","Jain","Non-vegetarian","Eggetarian","Other"].map(function(x){return <option key={x}>{x}</option>;})}
               </select></div>
             </div>
-            <div className="field"><label>Medical Conditions</label><textarea value={editData.conditions||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{conditions:e.target.value});});}} rows={2}/></div>
-            <div className="field"><label>Medications</label><textarea value={editData.meds||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{meds:e.target.value});});}} rows={2}/></div>
-            <div style={{display:"flex",gap:8,marginTop:10}}>
+            {hasCare(editData)&&<div>
+              <p style={{fontSize:11,fontWeight:600,color:"#1D4ED8",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8,marginTop:4}}>Delivery Address</p>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:4}}>
+                <div className="field"><label>Calling Phone</label><input value={editData.callingPhone||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{callingPhone:e.target.value});})}}/></div>
+                <div className="field"><label>PIN Code</label><input value={editData.deliveryPin||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryPin:e.target.value});})}}/></div>
+                <div className="field" style={{gridColumn:"1/-1"}}><label>Address Line 1</label><input value={editData.deliveryLine1||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryLine1:e.target.value});})}}/></div>
+                <div className="field" style={{gridColumn:"1/-1"}}><label>Address Line 2</label><input value={editData.deliveryLine2||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryLine2:e.target.value});})}}/></div>
+                <div className="field"><label>City, State</label><input value={editData.deliveryCity||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryCity:e.target.value});})}}/></div>
+                <div className="field"><label>Preferred Delivery Time</label><input value={editData.deliveryTime||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryTime:e.target.value});})}}/></div>
+                <div className="field" style={{gridColumn:"1/-1"}}><label>Landmark</label><input value={editData.deliveryLandmark||""} onChange={function(e){setEditData(function(p){return Object.assign({},p,{deliveryLandmark:e.target.value});})}}/></div>
+              </div>
+            </div>}
+            <div style={{display:"flex",gap:8,marginTop:12}}>
               <button className="btn" onClick={function(){if(editData&&editData.name){updClient(editData.id,editData);setShowEdit(false);}}} style={{background:"#1C1917",color:"white",padding:"10px 18px",flex:1,fontWeight:600}}>Save</button>
               <button className="btn" onClick={function(){setShowEdit(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px"}}>Cancel</button>
             </div>
