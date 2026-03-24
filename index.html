@@ -125,18 +125,64 @@ function rowToClient(row){
 }
 
 // ─── GOOGLE TOKEN ─────────────────────────────────────────────────────────────
-function gGetToken(){try{return localStorage.getItem("bbb_gt");}catch(e){return null;}}
-function gSetToken(t){try{localStorage.setItem("bbb_gt",t);}catch(e){}}
-function gClearToken(){try{localStorage.removeItem("bbb_gt");}catch(e){}}
-function isExpired(data){return data&&data.error&&(data.error.code===401||data.error.status==="UNAUTHENTICATED");}
+// Store token + expiry in memory (NOT localStorage — tokens expire in ~1hr and
+// localStorage hands back a stale string silently, causing 401/403 cascades)
+var _gTokenData={token:null,expiry:0};
+
+function gGetToken(){
+  if(_gTokenData.token&&Date.now()<_gTokenData.expiry-60000)return _gTokenData.token;
+  return null; // expired or not set — caller must re-auth
+}
+function gSetToken(t,expiresIn){
+  _gTokenData={token:t,expiry:Date.now()+(expiresIn||3500)*1000};
+  // Also persist a flag so the UI knows we were connected (not the token itself)
+  try{localStorage.setItem("bbb_was_connected","1");}catch(e){}
+}
+function gClearToken(){_gTokenData={token:null,expiry:0};try{localStorage.removeItem("bbb_was_connected");}catch(e){}}
+function isExpired(data){return data&&data.error&&(data.error.code===401||data.error.code===403||data.error.status==="UNAUTHENTICATED"||data.error.status==="PERMISSION_DENIED");}
+
+// Keep a reference to the token client so we can silently refresh
+var _gTokenClient=null;
 
 function gSignIn(cb){
-  if(typeof google==="undefined"){alert("Google services not available.");return;}
-  var client=google.accounts.oauth2.initTokenClient({
+  if(typeof google==="undefined"){alert("Google services not available. Check your internet connection.");return;}
+  _gTokenClient=google.accounts.oauth2.initTokenClient({
     client_id:G_CLIENT_ID,scope:G_SCOPES,
-    callback:function(resp){if(resp.access_token){gSetToken(resp.access_token);if(cb)cb(resp.access_token);}}
+    callback:function(resp){
+      if(resp.error){console.error("OAuth error:",resp.error);return;}
+      if(resp.access_token){
+        gSetToken(resp.access_token,resp.expires_in);
+        if(cb)cb(resp.access_token);
+      }
+    }
   });
-  client.requestAccessToken();
+  _gTokenClient.requestAccessToken({prompt:"consent"});
+}
+
+// Silent refresh — reuses existing Google session without showing consent screen
+function gRefreshToken(cb){
+  if(!_gTokenClient){
+    if(typeof google==="undefined"){if(cb)cb(null);return;}
+    _gTokenClient=google.accounts.oauth2.initTokenClient({
+      client_id:G_CLIENT_ID,scope:G_SCOPES,
+      callback:function(resp){
+        if(resp.access_token){gSetToken(resp.access_token,resp.expires_in);if(cb)cb(resp.access_token);}
+        else{if(cb)cb(null);}
+      }
+    });
+  }
+  try{_gTokenClient.requestAccessToken({prompt:""});}  // prompt:"" = silent
+  catch(e){if(cb)cb(null);}
+}
+
+// Get a valid token, refreshing silently if needed. Returns null if user must re-auth.
+async function gGetValidToken(){
+  var t=gGetToken();
+  if(t)return t;
+  // Try silent refresh
+  return new Promise(function(resolve){
+    gRefreshToken(function(newToken){resolve(newToken||null);});
+  });
 }
 
 // ─── CLOUD READ/WRITE HELPERS ─────────────────────────────────────────────────
@@ -235,16 +281,18 @@ async function cloudSaveAll(token,clients){
 }
 
 // ─── INTAKE SHEET SYNC (read-only) ────────────────────────────────────────────
-async function gSyncSheets(token){
+async function gSyncSheets(){
+  var token=await gGetValidToken();
+  if(!token)return"expired";
   try{
     var url="https://sheets.googleapis.com/v4/spreadsheets/"+G_SHEET_ID+"/values/"+encodeURIComponent(G_INTAKE_SHEET);
     var res=await fetch(url,{headers:{"Authorization":"Bearer "+token}});
     var data=await res.json();
-    if(isExpired(data))return"expired";
+    if(data.error){console.error("gSyncSheets error:",data.error);return isExpired(data)?"expired":[];}
     if(!data.values||data.values.length<2)return[];
     var headers=data.values[0];
     return data.values.slice(1).map(function(row){var obj={};headers.forEach(function(h,i){obj[h]=row[i]||"";});return obj;});
-  }catch(e){return[];}
+  }catch(e){console.error("gSyncSheets exception:",e);return[];}
 }
 
 // ─── GMAIL ────────────────────────────────────────────────────────────────────
@@ -695,19 +743,26 @@ function App(){
   // After pin verified, load clients from cloud (or fall back to localStorage)
   useEffect(function(){
     if(!pinVerified)return;
-    var token=gGetToken();
-    if(token){
-      loadClientsFromCloud(token);
+    var wasConnected=localStorage.getItem("bbb_was_connected");
+    if(wasConnected){
+      // Try silent token refresh then load cloud data
+      loadClientsFromCloud();
     }else{
-      // Fallback: localStorage
+      // First time / never connected — load from localStorage
       try{var d=localStorage.getItem("bbb_c");if(d)setClients(JSON.parse(d));}catch(e){}
     }
   },[pinVerified]);
 
-  async function loadClientsFromCloud(token){
+  async function loadClientsFromCloud(){
     setCloudStatus("saving");
-    var result=await cloudReadClients(token);
-    if(result==="expired"){handleTokenExpiry();return;}
+    var result=await cloudReadClients();
+    if(result==="expired"){
+      // Silent refresh failed — user needs to click Connect Google
+      setCloudStatus("idle");
+      try{var d=localStorage.getItem("bbb_c");if(d)setClients(JSON.parse(d));}catch(e){}
+      setShowReconnectBanner(true);
+      return;
+    }
     if(result.length>0){
       setClients(result);
       setCloudStatus("saved");
@@ -719,8 +774,7 @@ function App(){
           var parsed=JSON.parse(local);
           if(parsed.length>0){
             setClients(parsed);
-            // Push local data up to cloud
-            await cloudSaveAll(token,parsed);
+            await cloudSaveAll(parsed);
             setCloudStatus("saved");
             showToast("Migrated "+parsed.length+" local clients to Google Sheets cloud!");
             return;
@@ -741,14 +795,13 @@ function App(){
   useEffect(function(){try{localStorage.setItem("bbb_c",JSON.stringify(clients));}catch(e){};},[clients]);
 
   // ── Cloud auto-save debounce ──────────────────────────────────────────────
-  // Called whenever a single client changes — debounced 1.5s
   function triggerCloudSave(updatedClient,allClients){
-    var token=gGetToken();
-    if(!token)return;
+    var wasConnected=localStorage.getItem("bbb_was_connected");
+    if(!wasConnected)return;
     setCloudStatus("saving");
     if(cloudSaveTimer.current)clearTimeout(cloudSaveTimer.current);
     cloudSaveTimer.current=setTimeout(async function(){
-      var res=await cloudSaveClient(token,updatedClient,allClients);
+      var res=await cloudSaveClient(updatedClient,allClients);
       if(res==="expired"){handleTokenExpiry();setCloudStatus("error");return;}
       setCloudStatus(res?"saved":"error");
       setTimeout(function(){setCloudStatus("idle");},3000);
@@ -890,16 +943,11 @@ function App(){
     if(!newC.name)return;
     var ds=new Date().toLocaleDateString("en-US",{month:"short",day:"numeric"});
     var session={sessionNum:1,date:ds,plan:newC.plan||"",service:"",ct:"New Client",stage:newC.stage,sesMode:newC.sesMode||"Online",prefDate:newC.prefDate||"",prefWE:"",prefWD:"",prefSlot:newC.prefDate||"",extraNotes:"",labs:"",meetLink:"",refCode:"",sessionNotes:"",deliveryLine1:"",deliveryLine2:"",deliveryCity:"",deliveryPin:"",deliveryLandmark:"",deliveryTime:"",isPreferredAddress:"",finalConfirmation:"",callingPhone:""};
-    var token=gGetToken();
     setClients(function(prev){
       var code=genCode(prev,new Date());
       var c=Object.assign({},newC,{id:Date.now(),date:ds,cc:code,referredBy:"",referredByName:"",referralCount:0,sessions:[session],currentSession:0,scheduledMessages:[],payments:[]});
       var next=prev.concat([c]);
-      // Cloud save
-      if(token){
-        cloudSaveClient(token,c,next).then(function(res){if(res==="expired")handleTokenExpiry();else setCloudStatus(res?"saved":"error");setTimeout(function(){setCloudStatus("idle");},3000);});
-        setCloudStatus("saving");
-      }
+      triggerCloudSave(c,next);
       return next;
     });
     setShowAdd(false);
@@ -917,13 +965,13 @@ function App(){
   }
 
   function addPayment(clientId,payment){
-    var token=gGetToken();
+    var token=gGetToken(); // payment is local-only unless cloud save picks it up via triggerCloudSave
     setClients(function(prev){
       var next=prev.map(function(c){
         if(c.id!==clientId)return c;
         var payments=(c.payments||[]).concat([Object.assign({},payment,{id:Date.now(),date:payment.date||new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"2-digit"})})]);
         var updated=Object.assign({},c,{payments:payments});
-        if(token)triggerCloudSave(updated,next);
+        triggerCloudSave(updated,next);
         return updated;
       });
       return next;
@@ -942,39 +990,39 @@ function App(){
 
   function connectGoogle(){
     gSignIn(function(token){
-      setGToken(token);setShowReconnectBanner(false);showToast("Google connected! Loading cloud data...");
-      loadClientsFromCloud(token);
+      setGToken(token);setShowReconnectBanner(false);
+      showToast("Google connected! Loading cloud data...");
+      loadClientsFromCloud();
     });
   }
   function disconnectGoogle(){gClearToken();setGToken(null);setCloudStatus("idle");showToast("Disconnected from Google");}
 
   async function syncSheets(){
-    if(!gToken){showToast("Please connect Google first!");return;}
     setGSyncing(true);showToast("Syncing intake form...");
-    var rows=await gSyncSheets(gToken);
+    var rows=await gSyncSheets();
     setGSyncing(false);
     if(rows==="expired"){handleTokenExpiry();return;}
-    if(!rows.length){showToast("No new intake data found.");return;}
+    if(!rows.length){showToast("No new intake data found. Check the sheet name matches exactly.");return;}
     var parsed=rows.map(parseRow);
     setClients(function(prev){
       var merged=detectAndMerge(parsed,prev);
       var newCount=merged.length-prev.length;
-      // Save merged to cloud
-      cloudSaveAll(gToken,merged).then(function(res){
+      cloudSaveAll(merged).then(function(res){
         if(res==="expired")handleTokenExpiry();
         else setCloudStatus(res?"saved":"error");
         setTimeout(function(){setCloudStatus("idle");},3000);
       });
       setCloudStatus("saving");
-      showToast(newCount>0?newCount+" new client(s) synced and saved to cloud!":"All clients up to date!");
+      showToast(newCount>0?newCount+" new client(s) synced!":"All clients already up to date.");
       return merged;
     });
   }
 
   async function sendEmailDirect(to,subject,body){
-    if(!gToken){showToast("Connect Google to send emails directly!");return false;}
+    var token=await gGetValidToken();
+    if(!token){showToast("Connect Google to send emails directly!");return false;}
     setEmailStatus("Sending...");
-    var ok=await gSendEmail(gToken,to,subject,body);
+    var ok=await gSendEmail(token,to,subject,body);
     if(ok==="expired"){handleTokenExpiry();return false;}
     setEmailStatus(ok?"Sent!":"Failed.");
     setTimeout(function(){setEmailStatus("");},3000);
@@ -982,26 +1030,30 @@ function App(){
   }
 
   function selectDriveFolder(isRewards){
-    if(!gToken){showToast("Please connect Google first!");return;}
-    openFolderPicker(gToken,function(folder){
-      if(isRewards){setRewardsFolder({id:folder.id,name:folder.name});showToast("Rewards folder set: "+folder.name);}
-      else{setDriveFolder({id:folder.id,name:folder.name});showToast("Resources folder set: "+folder.name);}
+    gGetValidToken().then(function(token){
+      if(!token){showToast("Please connect Google first!");return;}
+      openFolderPicker(token,function(folder){
+        if(isRewards){setRewardsFolder({id:folder.id,name:folder.name});showToast("Rewards folder set: "+folder.name);}
+        else{setDriveFolder({id:folder.id,name:folder.name});showToast("Resources folder set: "+folder.name);}
+      });
     });
   }
 
   async function loadDriveFiles(folderId){
-    if(!gToken||!folderId)return;
+    var token=await gGetValidToken();
+    if(!token||!folderId)return;
     setLoadingFiles(true);
-    var files=await getDriveFiles(gToken,folderId);
+    var files=await getDriveFiles(token,folderId);
     if(files==="expired"){handleTokenExpiry();setLoadingFiles(false);return;}
     setDriveFiles(files);setLoadingFiles(false);
   }
 
   async function sendResourceToClient(client,files,mode){
-    if(!gToken||!client||!files.length)return;
+    var token=await gGetValidToken();
+    if(!token||!client||!files.length)return;
     var canDownload=mode==="download";var links=[];
     for(var i=0;i<files.length;i++){
-      var link=await shareFileWithEmail(gToken,files[i].id,client.email,canDownload);
+      var link=await shareFileWithEmail(token,files[i].id,client.email,canDownload);
       if(link)links.push({name:files[i].name,link:link});
     }
     if(!links.length){showToast("Could not share files.");return;}
