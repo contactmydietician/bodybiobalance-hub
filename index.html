@@ -654,9 +654,68 @@ async function loadHubData(token) {
   } catch(e) { console.error("loadHubData error:", e); return []; }
 }
 
+// HEALTH FLAGS
+var FLAG_CONDITIONS = ["diabetes","thyroid","pcos","pcod","hypertension","bp","cholesterol","kidney","liver","heart","anxiety","depression","ibs","celiac","lactose","gluten","anemia","arthritis"];
+function getHealthFlags(c) {
+  var cond = (c.conditions||"").toLowerCase();
+  var flags = [];
+  FLAG_CONDITIONS.forEach(function(f){ if(cond.indexOf(f)>=0) flags.push(f); });
+  return flags;
+}
+function getFlagColor(flag) {
+  var colors = {diabetes:"#E11D48",thyroid:"#7C3AED",pcos:"#D97706",pcod:"#D97706",hypertension:"#DC2626",bp:"#DC2626",cholesterol:"#EA580C",kidney:"#0891B2",liver:"#65A30D",heart:"#E11D48",anxiety:"#8B5CF6",depression:"#6366F1",ibs:"#92400E",celiac:"#B45309",lactose:"#D97706",gluten:"#B45309",anemia:"#DC2626",arthritis:"#0369A1"};
+  return colors[flag]||"#57534E";
+}
+
+// MORNING DASHBOARD HELPERS
+function getTodaysSessions(clients, calEvents) {
+  var today = new Date();
+  today.setHours(0,0,0,0);
+  return clients.filter(function(c){
+    var sess = curSess(c);
+    if(!sess.prefDate) return false;
+    try {
+      var d = new Date(sess.prefDate);
+      if(isNaN(d.getTime())) return false;
+      d.setHours(0,0,0,0);
+      return d.getTime()===today.getTime() && (cStage(c)==="Session Confirmed"||cStage(c)==="Active Client");
+    } catch(e){ return false; }
+  });
+}
+function getPendingPayments(clients) {
+  return clients.filter(function(c){ return cStage(c)==="Awaiting Payment"; });
+}
+function getCareInTransit(clients) {
+  return clients.filter(function(c){ return cStage(c)==="Care Package Dispatched"; });
+}
+function getInactiveClients(clients) {
+  var thirtyDaysAgo = Date.now() - (30*24*60*60*1000);
+  return clients.filter(function(c){
+    var lastContact = c.lastContactDate ? new Date(c.lastContactDate).getTime() : new Date(c.date).getTime();
+    return lastContact < thirtyDaysAgo && cStage(c)!=="Follow-up" && cStage(c)!=="New Inquiry";
+  });
+}
+function getProgramAnniversaries(clients) {
+  var today = new Date();
+  return clients.filter(function(c){
+    if(!c.programStartDate) return false;
+    try {
+      var start = new Date(c.programStartDate);
+      if(isNaN(start.getTime())) return false;
+      var diffDays = Math.floor((today-start)/86400000);
+      return diffDays===90||diffDays===180||diffDays===365||diffDays%365===0;
+    } catch(e){ return false; }
+  }).map(function(c){
+    var start = new Date(c.programStartDate);
+    var diffDays = Math.floor((new Date()-start)/86400000);
+    var milestone = diffDays===90?"3 months":diffDays===180?"6 months":Math.floor(diffDays/365)+" year(s)";
+    return Object.assign({},c,{milestone:milestone});
+  });
+}
+
 var G_CLIENT_ID = "999570977587-ag3da1l3lqcsnvfn61t33ugv9o4a57bk.apps.googleusercontent.com";
 var G_SHEET_ID = "14lu7D9TYIJL3fN922ypsPszZxoblVsApbUsFmsrePT4";
-var G_SCOPES = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/drive.file";
+var G_SCOPES = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive";
 
 function gGetToken(){try{return localStorage.getItem("bbb_gt");}catch(e){return null;}}
 function gSetToken(t){try{localStorage.setItem("bbb_gt",t);}catch(e){}}
@@ -864,6 +923,15 @@ function App() {
   var r79=useState([]);var bulkDriveFiles=r79[0];var setBulkDriveFiles=r79[1];
   var r80=useState(false);var showBulkDrive=r80[0];var setShowBulkDrive=r80[1];
   var r81=useState(false);var showSettings=r81[0];var setShowSettings=r81[1];
+  var r82=useState(true);var showDashboard=r82[0];var setShowDashboard=r82[1];
+  var r83=useState("");var scratchpad=r83[0];var setScratchpad=r83[1];
+  var r84=useState({});var clientFlags=r84[0];var setClientFlags=r84[1];
+  var r85=useState(false);var showUpgrade=r85[0];var setShowUpgrade=r85[1];
+  var r86=useState(null);var upgradeClient=r86[0];var setUpgradeClient=r86[1];
+  var r87=useState("");var upgradeMsg=r87[0];var setUpgradeMsg=r87[1];
+  var r88=useState("");var upgradePkg=r88[0];var setUpgradePkg=r88[1];
+  var r89=useState(false);var showMeetResend=r89[0];var setShowMeetResend=r89[1];
+  var r90=useState(null);var meetResendClient=r90[0];var setMeetResendClient=r90[1];
 
   useEffect(function(){
     var savedPin=localStorage.getItem("bbb_pin");
@@ -1300,6 +1368,28 @@ function App() {
     setShowBulkDrive(true);
   }
 
+  function getClientFlag(clientId) {
+    return clientFlags[clientId] || null;
+  }
+  function setClientFlag(clientId, flag, color) {
+    setClientFlags(function(prev){
+      var n = Object.assign({},prev);
+      if(flag) n[clientId]={flag:flag,color:color||"#E11D48"};
+      else delete n[clientId];
+      return n;
+    });
+  }
+  function getUpgradeSuggestion(c) {
+    var sess = curSess(c);
+    var plan = (sess.plan||"").toLowerCase();
+    var service = (sess.service||"").toLowerCase();
+    if(plan.indexOf("21 day")>=0||plan.indexOf("habit")>=0) return "Metabolic Reset - 30 Day Program";
+    if(plan.indexOf("30 day")>=0) return "Metabolic Reset - 60 Day Program";
+    if(plan.indexOf("60 day")>=0) return "1:1 Nutrition - Monthly Support Plan";
+    if(plan.indexOf("monthly support")>=0) return "1:1 Nutrition - Half Yearly Support Plan";
+    if(service.indexOf("homemaker")>=0) return "1:1 Nutrition - Monthly Support Plan";
+    return "1:1 Nutrition Consultation";
+  }
   async function genAi(){
     if(!sel||!aiP.trim())return;
     setAiLoad(true);setAiMsg("");
@@ -1482,14 +1572,115 @@ function App() {
       </div>
 
       <div style={{padding:"10px 22px 0",display:"flex",gap:3,borderBottom:"1px solid #E8E5DF",background:"white",overflowX:"auto"}}>
-        {[["today","Today (" + dueCount + ")"],["pipeline","Pipeline"],["timeline","Timeline"],["templates","Templates"],["checklist","Checklist"],["ai-compose","AI Compose"],["profile","Profile"]].map(function(it){
-          return <button key={it[0]} className={"tab"+(tab===it[0]?" active":"")} onClick={function(){setTab(it[0]);}}>{it[1]}</button>;
+        <button className={"tab"+(showDashboard?" active":"")} onClick={function(){setShowDashboard(true);}}>Dashboard</button>
+        {!showDashboard&&[["today","Today (" + dueCount + ")"],["pipeline","Pipeline"],["timeline","Timeline"],["templates","Templates"],["checklist","Checklist"],["ai-compose","AI Compose"],["profile","Profile"]].map(function(it){
+          return <button key={it[0]} className={"tab"+(tab===it[0]?" active":"")} onClick={function(){setTab(it[0]);setShowDashboard(false);}}>{it[1]}</button>;
+        })}
+        {showDashboard&&[["today","Today (" + dueCount + ")"],["pipeline","Pipeline"],["timeline","Timeline"],["templates","Templates"],["checklist","Checklist"],["ai-compose","AI Compose"],["profile","Profile"]].map(function(it){
+          return <button key={it[0]} className="tab" onClick={function(){setTab(it[0]);setShowDashboard(false);}}>{it[1]}</button>;
         })}
       </div>
 
       <div style={{padding:"16px 22px",display:"flex",gap:16,alignItems:"flex-start"}}>
 
-        <div className="card" style={{width:260,flexShrink:0}}>
+        {showDashboard&&<div style={{width:"100%"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14,marginBottom:16}}>
+
+            <div className="card" style={{padding:16}}>
+              <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Today s Sessions</p>
+              {getTodaysSessions(clients).length===0
+                ?<p style={{fontSize:13,color:"#D6D3D1",fontStyle:"italic"}}>No sessions today</p>
+                :getTodaysSessions(clients).map(function(c){
+                  var sess=curSess(c);
+                  return <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #F5F3EE"}} onClick={function(){setSel(c);setShowDashboard(false);setTab("pipeline");}}>
+                    <div style={{cursor:"pointer"}}>
+                      <p style={{fontSize:13,fontWeight:500}}>{c.name}</p>
+                      <p style={{fontSize:11,color:"#78716C"}}>{sess.prefSlot||sess.prefDate||"Today"}</p>
+                    </div>
+                    <span className="tag" style={{background:"#FAF5FF",color:"#9333EA",fontSize:10}}>{sess.sesMode||"Online"}</span>
+                  </div>;
+                })
+              }
+            </div>
+
+            <div className="card" style={{padding:16}}>
+              <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Pending Payments ({getPendingPayments(clients).length})</p>
+              {getPendingPayments(clients).length===0
+                ?<p style={{fontSize:13,color:"#D6D3D1",fontStyle:"italic"}}>No pending payments</p>
+                :getPendingPayments(clients).slice(0,5).map(function(c){
+                  return <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #F5F3EE",cursor:"pointer"}} onClick={function(){setSel(c);setShowDashboard(false);setTab("pipeline");}}>
+                    <p style={{fontSize:13}}>{c.name}</p>
+                    <span style={{fontSize:11,color:"#D97706",fontWeight:600}}>{c.date}</span>
+                  </div>;
+                })
+              }
+              {getPendingPayments(clients).length>5&&<p style={{fontSize:11,color:"#A8A29E",marginTop:6}}>+{getPendingPayments(clients).length-5} more</p>}
+            </div>
+
+            <div className="card" style={{padding:16}}>
+              <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Care Packages in Transit ({getCareInTransit(clients).length})</p>
+              {getCareInTransit(clients).length===0
+                ?<p style={{fontSize:13,color:"#D6D3D1",fontStyle:"italic"}}>No packages in transit</p>
+                :getCareInTransit(clients).map(function(c){
+                  return <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #F5F3EE",cursor:"pointer"}} onClick={function(){setSel(c);setShowDashboard(false);setTab("pipeline");}}>
+                    <p style={{fontSize:13}}>{c.name}</p>
+                    <span style={{fontSize:11,color:"#3B82F6"}}>{c.city||"--"}</span>
+                  </div>;
+                })
+              }
+            </div>
+
+            <div className="card" style={{padding:16}}>
+              <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Birthdays This Month</p>
+              {(function(){
+                var today=new Date();
+                var thisMonth=clients.filter(function(c){
+                  if(!c.dob)return false;
+                  try{var d=new Date(c.dob);return !isNaN(d.getTime())&&d.getMonth()===today.getMonth();}catch(e){return false;}
+                }).map(function(c){
+                  var d=new Date(c.dob);
+                  return Object.assign({},c,{bdayDay:d.getDate()});
+                }).sort(function(a,b){return a.bdayDay-b.bdayDay;});
+                if(!thisMonth.length)return <p style={{fontSize:13,color:"#D6D3D1",fontStyle:"italic"}}>No birthdays this month</p>;
+                return thisMonth.map(function(c){
+                  var isToday=c.bdayDay===today.getDate();
+                  return <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #F5F3EE"}}>
+                    <p style={{fontSize:13,color:isToday?"#E11D48":"#1C1917",fontWeight:isToday?600:400}}>{c.name}{isToday?" Today!":""}</p>
+                    <span style={{fontSize:11,color:"#78716C"}}>{c.bdayDay}th</span>
+                  </div>;
+                });
+              })()}
+            </div>
+
+            <div className="card" style={{padding:16}}>
+              <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Program Anniversaries</p>
+              {getProgramAnniversaries(clients).length===0
+                ?<p style={{fontSize:13,color:"#D6D3D1",fontStyle:"italic"}}>No anniversaries today</p>
+                :getProgramAnniversaries(clients).map(function(c){
+                  return <div key={c.id} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #F5F3EE",cursor:"pointer"}} onClick={function(){setSel(c);setShowDashboard(false);setTab("pipeline");}}>
+                    <p style={{fontSize:13}}>{c.name}</p>
+                    <span style={{fontSize:11,color:"#059669",fontWeight:600}}>{c.milestone}</span>
+                  </div>;
+                })
+              }
+            </div>
+
+            <div className="card" style={{padding:16}}>
+              <p style={{fontSize:11,fontWeight:600,color:"#A8A29E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:10}}>Quick Stats</p>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {[["Total Clients",clients.length,"#1C1917"],["Active",cnt("Active Client"),"#059669"],["Follow-up",cnt("Follow-up"),"#E11D48"],["New Inquiries",cnt("New Inquiry"),"#F97316"]].map(function(st){
+                  return <div key={st[0]} style={{background:"#FAFAF7",borderRadius:10,padding:"10px 12px",border:"1px solid #E8E5DF"}}>
+                    <p style={{fontSize:11,color:"#A8A29E"}}>{st[0]}</p>
+                    <p style={{fontSize:22,fontWeight:700,color:st[2]}}>{st[1]}</p>
+                  </div>;
+                })}
+              </div>
+            </div>
+
+          </div>
+        </div>}
+
+        <div className="card" style={{width:260,flexShrink:0,display:showDashboard?"none":"block"}}>
           <div style={{padding:"12px 14px",borderBottom:"1px solid #F5F3EE"}}>
             <input placeholder="Search name, phone, email..." value={search} onChange={function(e){setSearch(e.target.value);}} style={{marginBottom:8}}/>
             <select value={fStage} onChange={function(e){setFStage(e.target.value);}}>
@@ -1504,10 +1695,12 @@ function App() {
               return (
                 <div key={c.id} className={"crow"+(sel&&sel.id===c.id?" sel":"")} onClick={function(){setSel(c);setAiMsg("");setAiP("");}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                    <div style={{flex:1,minWidth:0}}>
+                    <div style={{flex:1,minWidth:0,display:showDashboard?"none":"block"}}>
                       <div style={{display:"flex",alignItems:"center",gap:5}}>
                         <p style={{fontWeight:500,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</p>
                         {c.cc&&<span style={{fontSize:9,fontFamily:"monospace",color:"#A8A29E",background:"#F5F3EE",borderRadius:4,padding:"1px 4px",flexShrink:0}}>#{c.cc}</span>}
+                        {(function(){var f=getClientFlag(c.id);return f?<span style={{width:8,height:8,borderRadius:"50%",background:f.color,display:"inline-block",flexShrink:0,title:f.flag}}></span>:null;})()}
+                        {getHealthFlags(c).length>0&&!getClientFlag(c.id)&&<span style={{width:8,height:8,borderRadius:"50%",background:getFlagColor(getHealthFlags(c)[0]),display:"inline-block",flexShrink:0}}></span>}
                       </div>
                       <p style={{fontSize:11,color:"#78716C",marginTop:1}}>{curSess(c).plan||curSess(c).service||c.goal||"No plan"}</p>
                     </div>
@@ -1576,6 +1769,18 @@ function App() {
   })}
 </div>}
 
+{getInactiveClients(clients).length>0&&<div style={{marginBottom:16}}>
+  <p style={{fontSize:13,fontWeight:600,color:"#57534E",marginBottom:8}}>Inactive Clients (30+ days no contact)</p>
+  {getInactiveClients(clients).map(function(c){
+    return <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"#FAFAF7",borderRadius:10,marginBottom:6,border:"1px solid #E8E5DF",cursor:"pointer"}} onClick={function(){setSel(c);setTab("pipeline");setShowDashboard(false);}}>
+      <div>
+        <p style={{fontSize:13,fontWeight:500}}>{c.name}</p>
+        <p style={{fontSize:11,color:"#A8A29E"}}>{cStage(c)} - since {c.date}</p>
+      </div>
+      {c.phone&&<a href={"https://wa.me/"+(function(){var p=(c.phone||"").replace(/[^0-9]/g,"");if(p.length===10)p="91"+p;return p;})()} target="_blank" rel="noopener noreferrer" onClick={function(e){e.stopPropagation();}} style={{background:"#22C55E",color:"white",padding:"4px 10px",borderRadius:8,fontSize:11,fontWeight:500,textDecoration:"none"}}>WhatsApp</a>}
+    </div>;
+  })}
+</div>}
 {allScheduled.length===0&&<div style={{padding:32,textAlign:"center"}}><p style={{color:"#A8A29E",fontSize:13}}>No scheduled messages yet</p><p style={{color:"#D6D3D1",fontSize:11,marginTop:4}}>Messages are scheduled automatically when you move clients to new stages</p></div>}
               {allScheduled.map(function(m){
                 var status=getSchedStatus(m.scheduledFor);
@@ -1621,7 +1826,9 @@ function App() {
                       {s.referralCount>0&&<span className="badge" style={{background:"#FAF5FF",color:"#9333EA",border:"1px solid #E9D5FF"}}>Referred {s.referralCount}</span>}
                     </div>
                     <div style={{display:"flex",gap:10,marginTop:4,fontSize:12,color:"#57534E",flexWrap:"wrap"}}>
-                      {s.goal&&<span>{s.goal}</span>}{s.phone&&<span>{s.phone}</span>}{s.email&&<span>{s.email}</span>}
+                      {s.goal&&<span>{s.goal}</span>}
+                      {s.phone&&<a href={"https://wa.me/"+(function(){var p=(s.phone||"").replace(/[^0-9]/g,"");if(p.length===10)p="91"+p;return p;})()} target="_blank" rel="noopener noreferrer" style={{color:"#22C55E",textDecoration:"none",fontWeight:500}}>{s.phone}</a>}
+                      {s.email&&<span>{s.email}</span>}
                     </div>
                     {sess.plan&&<p style={{marginTop:4,fontSize:12,color:"#92400E",fontWeight:500}}>{sess.plan} ({sess.ct})</p>}
                     {s.conditions&&<p style={{marginTop:3,fontSize:12,color:"#78716C",fontStyle:"italic"}}>{s.conditions}</p>}
@@ -1645,6 +1852,14 @@ function App() {
                         var msg="Hi "+s.name.split(" ")[0]+"! It was wonderful working with you. I would love to hear about your experience. Please share your feedback using this form: [FEEDBACK FORM LINK]. Your review means a lot! Warm regards, Taniya";
                         if(s.phone)window.open("https://wa.me/"+s.phone.replace(/\D/g,"")+"?text="+encodeURIComponent(msg),"_blank");
                       }} style={{background:"#9333EA",color:"white",padding:"5px 10px",fontSize:11}}>Feedback</button>
+                      <button className="btn" onClick={function(){
+                        var suggested=getUpgradeSuggestion(s);
+                        var defMsg="Hi "+s.name.split(" ")[0]+"! You have done an amazing job completing your program! Based on your progress, I think you are ready for the next step - "+suggested+". Would you like to know more? I would love to help you continue your wellness journey! Warm regards, Taniya";
+                        setUpgradeClient(s);setUpgradePkg(suggested);setUpgradeMsg(defMsg);setShowUpgrade(true);
+                      }} style={{background:"#059669",color:"white",padding:"5px 10px",fontSize:11}}>Upgrade</button>
+                      <button className="btn" onClick={function(){
+                        if(sess.meetLink){var msg="Hi "+s.name.split(" ")[0]+"! Here is your session meeting link: "+sess.meetLink+" See you soon! Warm regards, Taniya";if(s.phone)window.open("https://wa.me/"+(function(){var p=(s.phone||"").replace(/[^0-9]/g,"");if(p.length===10)p="91"+p;return p;})()+"?text="+encodeURIComponent(msg),"_blank");}else{showToast("No Meet link found.");}
+                      }} style={{background:"#7C3AED",color:"white",padding:"5px 10px",fontSize:11}}>Resend Meet</button>
                       <button className="btn" onClick={function(){
                       var st=cStage(s);var mt="session_reminder";
                       if(st==="New Inquiry")mt="payment";
@@ -1752,6 +1967,35 @@ function App() {
                   );
                 })}
                 <p style={{fontSize:11,color:"#A8A29E",textAlign:"center",paddingTop:4}}>{(s.sessions||[]).length} session(s) - {s.referralCount||0} referral(s)</p>
+              </div>
+              <div style={{marginTop:16,padding:"14px 16px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:12}}>
+                <p style={{fontSize:11,fontWeight:600,color:"#92400E",textTransform:"uppercase",letterSpacing:".08em",marginBottom:8}}>Quick Session Notes (Scratchpad)</p>
+                <textarea value={scratchpad} onChange={function(e){setScratchpad(e.target.value);}} rows={4} placeholder="Type notes here during your live session... Save to add to session timeline." style={{fontSize:12,lineHeight:1.6,marginBottom:8,background:"white"}}/>
+                <div style={{display:"flex",gap:8}}>
+                  <button className="btn" onClick={function(){
+                    if(!scratchpad.trim())return;
+                    var note=scratchpad;
+                    setClients(function(prev){return prev.map(function(c){
+                      if(c.id!==s.id)return c;
+                      var sessions=c.sessions.slice();
+                      var idx=c.currentSession||0;
+                      var existing=sessions[idx].sessionNotes||"";
+                      var sep=existing?"\n\n":""; sessions[idx]=Object.assign({},sessions[idx],{sessionNotes:existing+sep+new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Kolkata"})+": "+note});
+                      return Object.assign({},c,{sessions:sessions});
+                    });});
+                    setSel(function(p){
+                      if(!p||p.id!==s.id)return p;
+                      var sessions=p.sessions.slice();
+                      var idx=p.currentSession||0;
+                      var existing=sessions[idx].sessionNotes||"";
+                      var sep=existing?"\n\n":""; sessions[idx]=Object.assign({},sessions[idx],{sessionNotes:existing+sep+new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Kolkata"})+": "+note});
+                      return Object.assign({},p,{sessions:sessions});
+                    });
+                    setScratchpad("");
+                    showToast("Note saved to session timeline!");
+                  }} style={{background:"#92400E",color:"white",padding:"7px 14px",fontWeight:600,fontSize:12}}>Save to Timeline</button>
+                  <button className="btn" onClick={function(){setScratchpad("");}} style={{background:"#F5F3EE",color:"#57534E",padding:"7px 14px",fontSize:12}}>Clear</button>
+                </div>
               </div>
             </div>
           )}
@@ -2267,6 +2511,32 @@ function App() {
             </div>}
 
             {!showReward&&<button className="btn" onClick={function(){setShowRevTest(false);setShowReward(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px",marginTop:8,width:"100%"}}>Close</button>}
+          </div>
+        </div>
+      )}
+
+      {showUpgrade&&upgradeClient&&(
+        <div className="overlay" onClick={function(){setShowUpgrade(false);}}>
+          <div className="modal fi" onClick={function(e){e.stopPropagation();}}>
+            <h2 className="serif" style={{fontSize:20,marginBottom:4}}>Package Upgrade</h2>
+            <p style={{fontSize:13,color:"#78716C",marginBottom:16}}>{upgradeClient.name}</p>
+            <div className="field">
+              <label>Suggested Next Package</label>
+              <input value={upgradePkg} onChange={function(e){
+                var pkg=e.target.value;
+                setUpgradePkg(pkg);
+                setUpgradeMsg(function(prev){return prev.replace(getUpgradeSuggestion(upgradeClient),pkg);});
+              }}/>
+            </div>
+            <div className="field">
+              <label>Message (editable)</label>
+              <textarea value={upgradeMsg} onChange={function(e){setUpgradeMsg(e.target.value);}} rows={6} style={{fontSize:12,lineHeight:1.6}}/>
+            </div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+              {upgradeClient.phone&&<a href={"https://wa.me/"+(function(){var p=(upgradeClient.phone||"").replace(/[^0-9]/g,"");if(p.length===10)p="91"+p;return p;})()+"?text="+encodeURIComponent(upgradeMsg)} target="_blank" rel="noopener noreferrer" style={{background:"#22C55E",color:"white",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Send WhatsApp</a>}
+              {upgradeClient.email&&<a href={"mailto:"+upgradeClient.email+"?subject=Your Next Step in Wellness&body="+encodeURIComponent(upgradeMsg)} style={{background:"#3B82F6",color:"white",padding:"6px 14px",borderRadius:8,fontSize:12,fontWeight:500,textDecoration:"none"}}>Send Email</a>}
+            </div>
+            <button className="btn" onClick={function(){setShowUpgrade(false);}} style={{background:"#F5F3EE",color:"#57534E",padding:"10px 14px",width:"100%"}}>Close</button>
           </div>
         </div>
       )}
